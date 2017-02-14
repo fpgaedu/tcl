@@ -1,11 +1,42 @@
 # JSON parser / encoder.
+#
 # Copyright (C) 2014, 2015, 2016 dbohdan.
+#   Applies to original code
+#
+# Copyright (C) 2017 Matthijs Bos <matthijs_vlaarbos@hotmail.com>
+#   Applies
+#   ::fpgaedu::json::parse-schema
+#   ::fpgaedu::json::decode-schema
+# 
 # License: MIT
+#
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation  and/or other materials provided with the distribution.
+# 3. Neither the names of the copyright holders nor the names of any
+#    contributors may be used to endorse or promote products derived from this
+#    software without specific prior written permission.
+# 
+#    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+#    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#    ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+#    LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+#    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+#    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+#    INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+#    CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+#    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#    POSSIBILITY OF SUCH DAMAGE.
 
-### The public API: will remain backwards compatible for a major release
-### version of this module.
-
-namespace eval ::json {
+namespace eval ::fpgaedu::json {
     variable version 2.0.0
 
     variable everyKey *
@@ -15,9 +46,19 @@ namespace eval ::json {
 # Parse the string $str containing JSON into nested Tcl dictionaries.
 # numberDictArrays: decode arrays as dictionaries with sequential integers
 # starting with zero as keys; otherwise decode them as lists.
-proc ::json::parse {str {numberDictArrays 1}} {
-    set tokens [::json::tokenize $str]
-    set result [::json::decode $tokens $numberDictArrays]
+proc ::fpgaedu::json::parse {str {numberDictArrays 1}} {
+    set tokens [::fpgaedu::json::tokenize $str]
+    set result [::fpgaedu::json::decode $tokens $numberDictArrays]
+    if {[lindex $result 1] == [llength $tokens]} {
+        return [lindex $result 0]
+    } else {
+        error "trailing garbage after JSON data in [list $str]"
+    }
+}
+
+proc ::json::parse-schema {str {numberDictArrays 1}} {
+    set tokens [::fpgaedu::json::tokenize $str]
+    set result [::fpgaedu::json::decode-schema $tokens $numberDictArrays]
     if {[lindex $result 1] == [llength $tokens]} {
         return [lindex $result 0]
     } else {
@@ -48,7 +89,7 @@ proc ::json::parse {str {numberDictArrays 1}} {
 # strictSchema: generate an error if there is no schema for a value in $data.
 #
 # compact: no decorative whitespace.
-proc ::json::stringify {data {numberDictArrays 1} {schema ""}
+proc ::fpgaedu::json::stringify {data {numberDictArrays 1} {schema ""}
         {strictSchema 0} {compact 0}} {
     if {$schema eq "string"} {
         return "\"$data\""
@@ -65,14 +106,14 @@ proc ::json::stringify {data {numberDictArrays 1} {schema ""}
         ($schema eq "array") ||
         ([lindex $schema 0] eq $::json::everyElement) ||
         ($numberDictArrays && $schemaValidDict &&
-                [dict exists $schema $::json::everyElement]) ||
+                [dict exists $schema $::fpgaedu::json::everyElement]) ||
         (!$numberDictArrays && $validDict && $schemaValidDict &&
                 ([llength $schema] > 0) &&
-                (![::json::subset [dict keys $schema] [dict keys $data]]))
+                (![::fpgaedu::json::subset [dict keys $schema] [dict keys $data]]))
     }]
     set schemaForceObject [expr {
         ($schema eq "object") ||
-        ($schemaValidDict && [dict exists $schema $::json::everyKey])
+        ($schemaValidDict && [dict exists $schema $::fpgaedu::json::everyKey])
     }]
     if {([llength $data] <= 1) &&
             !$schemaForceArray && !$schemaForceObject} {
@@ -102,16 +143,16 @@ proc ::json::stringify {data {numberDictArrays 1} {schema ""}
         set isArray [expr {
             !$schemaForceObject &&
             (($numberDictArrays && $validDict &&
-                            [::json::number-dict? $data]) ||
+                            [::fpgaedu::json::number-dict? $data]) ||
                     (!$numberDictArrays && !$validDict) ||
                     ($schemaForceArray && (!$numberDictArrays || $validDict)))
         }]
 
         if {$isArray} {
-            return [::json::stringify-array $data \
+            return [::fpgaedu::json::stringify-array $data \
                     $numberDictArrays $schema $strictSchema $compact]
         } elseif {$validDict} {
-            return [::json::stringify-object $data \
+            return [::fpgaedu::json::stringify-object $data \
                     $numberDictArrays $schema $strictSchema $compact]
         } else {
             error "invalid schema \"$schema\" for list \"$data\""
@@ -120,17 +161,17 @@ proc ::json::stringify {data {numberDictArrays 1} {schema ""}
     error {this should not be reached}
 }
 
-# A convenience wrapper for ::json::stringify with named parameters.
-proc ::json::stringify2 {data args} {
-    set numberDictArrays  [::json::get-option  -numberDictArrays 1  ]
-    set schema            [::json::get-option  -schema {}           ]
-    set strictSchema      [::json::get-option  -strictSchema 0      ]
-    set compact           [::json::get-option  -compact 0           ]
+# A convenience wrapper for ::fpgaedu::json::stringify with named parameters.
+proc ::fpgaedu::json::stringify2 {data args} {
+    set numberDictArrays  [::fpgaedu::json::get-option  -numberDictArrays 1  ]
+    set schema            [::fpgaedu::json::get-option  -schema {}           ]
+    set strictSchema      [::fpgaedu::json::get-option  -strictSchema 0      ]
+    set compact           [::fpgaedu::json::get-option  -compact 0           ]
     if {[llength [dict keys $args]] > 0} {
         error "unknown options: [dict keys $args]"
     }
 
-    return [::json::stringify \
+    return [::fpgaedu::json::stringify \
             $data $numberDictArrays $schema $strictSchema $compact]
 }
 
@@ -140,7 +181,7 @@ proc ::json::stringify2 {data args} {
 
 # If $option is a key in $args of the caller unset it and return its value.
 # If not, return $default.
-proc ::json::get-option {option default} {
+proc ::fpgaedu::json::get-option {option default} {
     upvar args dictionary
     if {[dict exists $dictionary $option]} {
         set result [dict get $dictionary $option]
@@ -153,7 +194,7 @@ proc ::json::get-option {option default} {
 
 # Return 1 if the elements in $a are a subset of those in $b and and 0
 # otherwise.
-proc ::json::subset {a b} {
+proc ::fpgaedu::json::subset {a b} {
     set keySet {}
     foreach x $a {
         dict set keySet $x 1
@@ -164,10 +205,10 @@ proc ::json::subset {a b} {
     return [expr {[llength $keySet] == 0}]
 }
 
-## Procedures used by ::json::stringify.
+## Procedures used by ::fpgaedu::json::stringify.
 
 # Return 1 if the keys in dictionary are numbers 0, 1, 2... and 0 otherwise.
-proc ::json::number-dict? {dictionary} {
+proc ::fpgaedu::json::number-dict? {dictionary} {
     set i 0
     foreach {key _} $dictionary {
         if {$key != $i} {
@@ -181,13 +222,13 @@ proc ::json::number-dict? {dictionary} {
 # Return the value for key $key from $schema if the key is present. Otherwise
 # either return the default value "" or, if $strictSchema is true, generate an
 # error.
-proc ::json::get-schema-by-key {schema key {strictSchema 0}} {
+proc ::fpgaedu::json::get-schema-by-key {schema key {strictSchema 0}} {
     if {[dict exists $schema $key]} {
         set valueSchema [dict get $schema $key]
-    } elseif {[dict exists $schema $::json::everyKey]} {
-        set valueSchema [dict get $schema $::json::everyKey]
-    } elseif {[dict exists $schema $::json::everyElement]} {
-        set valueSchema [dict get $schema $::json::everyElement]
+    } elseif {[dict exists $schema $::fpgaedu::json::everyKey]} {
+        set valueSchema [dict get $schema $::fpgaedu::json::everyKey]
+    } elseif {[dict exists $schema $::fpgaedu::json::everyElement]} {
+        set valueSchema [dict get $schema $::fpgaedu::json::everyElement]
     } else {
         if {$strictSchema} {
             error "missing schema for key \"$key\""
@@ -197,7 +238,7 @@ proc ::json::get-schema-by-key {schema key {strictSchema 0}} {
     }
 }
 
-proc ::json::stringify-array {array {numberDictArrays 1} {schema ""}
+proc ::fpgaedu::json::stringify-array {array {numberDictArrays 1} {schema ""}
         {strictSchema 0} {compact 0}} {
     set arrayElements {}
     if {$numberDictArrays} {
@@ -205,15 +246,15 @@ proc ::json::stringify-array {array {numberDictArrays 1} {schema ""}
             if {($schema eq "") || ($schema eq "array")} {
                 set valueSchema {}
             } else {
-                set valueSchema [::json::get-schema-by-key \
+                set valueSchema [::fpgaedu::json::get-schema-by-key \
                         $schema $key $strictSchema]
             }
-            lappend arrayElements [::json::stringify $value 1 \
+            lappend arrayElements [::fpgaedu::json::stringify $value 1 \
                     $valueSchema $strictSchema]
         }
     } else { ;# list arrays
         set defaultSchema ""
-        if {[lindex $schema 0] eq $::json::everyElement} {
+        if {[lindex $schema 0] eq $::fpgaedu::json::everyElement} {
             set defaultSchema [lindex $schema 1]
             set schema [lrange $schema 2 end]
         }
@@ -221,7 +262,7 @@ proc ::json::stringify-array {array {numberDictArrays 1} {schema ""}
             if {($schema eq "") || ($schema eq "array")} {
                 set valueSchema $defaultSchema
             }
-            lappend arrayElements [::json::stringify $value 0 \
+            lappend arrayElements [::fpgaedu::json::stringify $value 0 \
                     $valueSchema $strictSchema $compact]
         }
     }
@@ -234,7 +275,7 @@ proc ::json::stringify-array {array {numberDictArrays 1} {schema ""}
     return "\[[join $arrayElements $elementSeparator]\]"
 }
 
-proc ::json::stringify-object {dictionary {numberDictArrays 1} {schema ""}
+proc ::fpgaedu::json::stringify-object {dictionary {numberDictArrays 1} {schema ""}
         {strictSchema 0} {compact 0}} {
     set objectDict {}
     if {$compact} {
@@ -249,21 +290,21 @@ proc ::json::stringify-object {dictionary {numberDictArrays 1} {schema ""}
         if {($schema eq "") || ($schema eq "object")} {
             set valueSchema {}
         } else {
-            set valueSchema [::json::get-schema-by-key \
+            set valueSchema [::fpgaedu::json::get-schema-by-key \
                 $schema $key $strictSchema]
         }
-        lappend objectDict "\"$key\"$keyValueSeparator[::json::stringify \
+        lappend objectDict "\"$key\"$keyValueSeparator[::fpgaedu::json::stringify \
                 $value $numberDictArrays $valueSchema $strictSchema $compact]"
     }
 
     return "{[join $objectDict $elementSeparator]}"
 }
 
-## Procedures used by ::json::parse.
+## Procedures used by ::fpgaedu::json::parse.
 
 # Returns a list consisting of two elements: the decoded value and a number
 # indicating how many tokens from $tokens were consumed to obtain that value.
-proc ::json::decode {tokens numberDictArrays {startingOffset 0}} {
+proc ::fpgaedu::json::decode {tokens numberDictArrays {startingOffset 0}} {
     set i $startingOffset
     set nextToken [list {} {
         uplevel 1 {
@@ -324,7 +365,7 @@ proc ::json::decode {tokens numberDictArrays {startingOffset 0}} {
                 apply $errorMessage "object expected a colon, got $token"
             }
 
-            lassign [::json::decode $tokens $numberDictArrays $i] \
+            lassign [::fpgaedu::json::decode $tokens $numberDictArrays $i] \
                     value tokensInValue
             lappend object $key $value
             incr i $tokensInValue
@@ -354,7 +395,7 @@ proc ::json::decode {tokens numberDictArrays {startingOffset 0}} {
             # Use the last token as part of the value for recursive decoding.
             incr i -1
 
-            lassign [::json::decode $tokens $numberDictArrays $i] \
+            lassign [::fpgaedu::json::decode $tokens $numberDictArrays $i] \
                     value tokensInValue
             if {$numberDictArrays} {
                 lappend array $j $value
@@ -376,8 +417,130 @@ proc ::json::decode {tokens numberDictArrays {startingOffset 0}} {
     error {this should not be reached}
 }
 
+proc ::fpgaedu::json::decode-schema {tokens numberDictArrays {startingOffset 0}} {
+    set i $startingOffset
+    set nextToken [list {} {
+        uplevel 1 {
+            set token [lindex $tokens $i]
+            lassign $token type arg
+            incr i
+        }
+    }]
+    set errorMessage [list message {
+        upvar 1 tokens tokens
+        upvar 1 i i
+        if {[llength $tokens] - $i > 0} {
+            set max 5
+            set context [lrange $tokens $i [expr {$i + $max - 1}]]
+            if {[llength $tokens] - $i >= $max} {
+                lappend context ...
+            }
+            append message " before $context"
+        } else {
+            append message " at the end of the token list"
+        }
+        uplevel 1 [list error $message]
+    }]
+
+    apply $nextToken
+
+    if {$type eq "STRING"} {
+        return [list "string" [expr {$i - $startingOffset}]]
+    } elseif {$type eq "NUMBER"} {
+        return [list "number" [expr {$i - $startingOffset}]]
+    } elseif {$type eq "RAW"} {
+        if {$arg in {true, false}} {
+            return [list "boolean" [expr {$i - $startingOffset}]]
+        } else {
+            return [list "null" [expr {$i - $startingOffset}]]
+        }
+    } elseif {$type eq "OPEN_CURLY"} {
+        # Object.
+        set object {}
+        set first 1
+
+        while 1 {
+            apply $nextToken
+
+            if {$type eq "CLOSE_CURLY"} {
+                return [list $object [expr {$i - $startingOffset}]]
+            }
+
+            if {!$first} {
+                if {$type eq "COMMA"} {
+                    apply $nextToken
+                } else {
+                    apply $errorMessage "object expected a comma, got $token"
+                }
+            }
+
+            if {$type eq "STRING"} {
+                set key $arg
+            } else {
+                apply $errorMessage "wrong key for object: $token"
+            }
+
+            apply $nextToken
+
+            if {$type ne "COLON"} {
+                apply $errorMessage "object expected a colon, got $token"
+            }
+
+            lassign [::fpgaedu::json::decode-schema $tokens $numberDictArrays $i] \
+                    value tokensInValue
+            lappend object $key $value
+            incr i $tokensInValue
+
+            set first 0
+        }
+    } elseif {$type eq "OPEN_BRACKET"} {
+        # Array.
+        set array {}
+        set j 0
+
+        while 1 {
+            apply $nextToken
+
+            if {$type eq "CLOSE_BRACKET"} {
+                return [list $array [expr {$i - $startingOffset}]]
+            }
+
+            if {$j > 0} {
+                if {$type eq "COMMA"} {
+                    apply $nextToken
+                } else {
+                    apply $errorMessage "array expected a comma, got $token"
+                }
+            }
+
+            # Use the last token as part of the value for recursive decoding.
+            incr i -1
+
+            lassign [:::fpgaedu:json::decode-schema $tokens $numberDictArrays $i] \
+                    value tokensInValue
+            if {$numberDictArrays} {
+                lappend array $j $value
+            } else {
+                lappend array $value
+            }
+            incr i $tokensInValue
+
+            incr j
+        }
+    } else {
+        if {$token eq ""} {
+            apply $errorMessage "missing token"
+        } else {
+            apply $errorMessage "can't parse $token"
+        }
+    }
+
+    error {this should not be reached}
+}
+
+
 # Transform a JSON blob into a list of tokens.
-proc ::json::tokenize json {
+proc ::fpgaedu::json::tokenize json {
     if {$json eq {}} {
         error {empty JSON input}
     }
@@ -387,7 +550,7 @@ proc ::json::tokenize json {
         set char [string index $json $i]
         switch -exact -- $char {
             \" {
-                set value [::json::analyze-string [string range $json $i end]]
+                set value [::fpgaedu::json::analyze-string [string range $json $i end]]
                 lappend tokens \
                         [list STRING [subst -nocommand -novariables $value]]
 
@@ -418,13 +581,13 @@ proc ::json::tokenize json {
             \r {}
             default {
                 if {$char in {- 0 1 2 3 4 5 6 7 8 9}} {
-                    set value [::json::analyze-number \
+                    set value [::fpgaedu::json::analyze-number \
                             [string range $json $i end]]
                     lappend tokens [list NUMBER $value]
 
                     incr i [expr {[string length $value] - 1}]
                 } elseif {$char in {t f n}} {
-                    set value [::json::analyze-boolean-or-null \
+                    set value [::fpgaedu::json::analyze-boolean-or-null \
                             [string range $json $i end]]
                     lappend tokens [list RAW $value]
 
@@ -439,7 +602,7 @@ proc ::json::tokenize json {
 }
 
 # Return the beginning of $str parsed as "true", "false" or "null".
-proc ::json::analyze-boolean-or-null str {
+proc ::fpgaedu::json::analyze-boolean-or-null str {
     regexp {^(true|false|null)} $str value
     if {![info exists value]} {
         error "can't parse value as JSON true/false/null: [list $str]"
@@ -448,7 +611,7 @@ proc ::json::analyze-boolean-or-null str {
 }
 
 # Return the beginning of $str parsed as a JSON string.
-proc ::json::analyze-string str {
+proc ::fpgaedu::json::analyze-string str {
     if {[regexp {^"((?:[^"\\]|\\.)*)"} $str _ result]} {
         return $result
     } else {
@@ -457,7 +620,7 @@ proc ::json::analyze-string str {
 }
 
 # Return $str parsed as a JSON number.
-proc ::json::analyze-number str {
+proc ::fpgaedu::json::analyze-number str {
     if {[regexp -- {^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(:?(?:e|E)[+-]?[0-9]*)?} \
             $str result]} {
         #            [][ integer part  ][ optional  ][  optional exponent  ]
