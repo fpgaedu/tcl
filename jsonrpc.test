@@ -3,6 +3,8 @@ package require tcltest
 
 namespace import ::tcltest::*
 
-source [file join .. jsonrpc.tcl]
+#source jsonrpc.tcl
 
-test myFirstTest
+test myFirstTest {test description} {
+    expr {1 + 2}
+} 3

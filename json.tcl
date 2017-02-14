@@ -55,7 +55,7 @@ proc ::fpgaedu::json::parse {str {numberDictArrays 1}} {
     }
 }
 
-proc ::json::parse-schema {str {numberDictArrays 1}} {
+proc ::fpgaedu::json::parse-schema {str {numberDictArrays 1}} {
     set tokens [::fpgaedu::json::tokenize $str]
     set result [::fpgaedu::json::decode-schema $tokens $numberDictArrays]
     if {[lindex $result 1] == [llength $tokens]} {
