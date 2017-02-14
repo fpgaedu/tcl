@@ -1,0 +1,8 @@
+
+package require tcltest
+
+namespace import ::tcltest::*
+
+source [file join .. jsonrpc.tcl]
+
+test myFirstTest

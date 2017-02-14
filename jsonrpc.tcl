@@ -13,10 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source json.tcl
+package require Tcl 8.5
+package require fpgaedu::json 1.0
+
+package provide fpgaedu::jsonrpc 1.0
 
 namespace eval ::fpgaedu::jsonrpc {
-
+    
 }
 
 proc ::fpgaedu::jsonrpc::handle {mapping channel} {
