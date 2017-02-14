@@ -1,12 +1,10 @@
 # JSON parser / encoder.
 #
 # Copyright (C) 2014, 2015, 2016 dbohdan.
-#   Applies to original code
+#   Applies to original code from jimhttp library
 #
 # Copyright (C) 2017 Matthijs Bos <matthijs_vlaarbos@hotmail.com>
-#   Applies
-#   ::fpgaedu::json::parse-schema
-#   ::fpgaedu::json::decode-schema
+#   Applies to modifications
 # 
 # License: MIT
 #
@@ -36,9 +34,10 @@
 #    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #    POSSIBILITY OF SUCH DAMAGE.
 
-namespace eval ::fpgaedu::json {
-    variable version 2.0.0
+package require Tcl 8.5
+package provide fpgaedu::json 1.0
 
+namespace eval ::fpgaedu::json {
     variable everyKey *
     variable everyElement N*
 }
