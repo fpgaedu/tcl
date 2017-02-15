@@ -32,10 +32,10 @@ proc ::fpgaedu::jsonrpc::handle {mapping channel} {
         set request [chan read $channel]
         
         # parse request data
-        lassign [::fpgaedu::jsonrpc::parse-request request] data schema
+        lassign [::fpgaedu::jsonrpc::parseRequest request] data schema
 
         # validate request
-        ::fpgaedu::jsonrpc::validate-request $data $schema
+        ::fpgaedu::jsonrpc::validateRequest $data $schema
 
         # extract relevant request members
         set method [dict get $data method]
@@ -52,7 +52,7 @@ proc ::fpgaedu::jsonrpc::handle {mapping channel} {
         # execute handler
         set result [$handler $params]
 
-        set response [::fpgaedu::jsonrpc::stringify-result $result $result-schema \
+        set response [::fpgaedu::jsonrpc::stringifyResult $result $result-schema \
                 $id $id-schema] 
        
         
@@ -81,14 +81,14 @@ proc ::fpgaedu::jsonrpc::handle {mapping channel} {
             dict set $error-data-schema string
         }
 
-        set response [::fpgaedu::jsonrpc::stringify-error $error  $id 0 $id-schema]
+        set response [::fpgaedu::jsonrpc::stringifyError $error  $id 0 $id-schema]
 
     chan puts $channel response
 
     chan close $channel
 }
 
-proc ::fpgaedu::jsonrpc::parse-request {data} {
+proc ::fpgaedu::jsonrpc::parseRequest {data} {
 
     if {[catch {
         set json [::json::parse $data 0]
@@ -100,7 +100,7 @@ proc ::fpgaedu::jsonrpc::parse-request {data} {
     return [list $json $schema]
 }
 
-proc ::fpgaedu::jsonrpc::validate-request {data schema} {
+proc ::fpgaedu::jsonrpc::validateRequest {data schema} {
     # check jsonrpc member
     if {![dict exists $data jsonrpc]} {
         ::fpgaedu::jsonrpc::throw-invalid-request "Missing member jsonrpc"
@@ -131,7 +131,7 @@ proc ::fpgaedu::jsonrpc::validate-request {data schema} {
     }
 }
 
-proc ::fpgaedu::jsonrpc::stringify-result {data data-schema id id-schema} {
+proc ::fpgaedu::jsonrpc::stringifyResult {data data-schema id id-schema} {
 
    set response {} 
    dict set $response jsonrpc 2.0
@@ -151,7 +151,7 @@ proc ::fpgaedu::jsonrpc::stringify-result {data data-schema id id-schema} {
    ::json::stringify $response 0 $schema 
 }
 
-proc ::fpgaedu::jsonrpc::stringify-error {error error-data-schema id id-schema} {
+proc ::fpgaedu::jsonrpc::stringifyError {error error-data-schema id id-schema} {
 
    set response {} 
    dict set $response jsonrpc 2.0
@@ -178,7 +178,6 @@ proc ::fpgaedu::jsonrpc::find-handler {mapping, method} {
         ::fpgaedu::jsonrpc::throw-unknown-method "Unknown method $method"
     }
 }
-
 
 proc ::fpgaedu::jsonrpc::throw {code message {data {} {data-schema ""}} {
 
