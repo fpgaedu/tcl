@@ -39,256 +39,202 @@ package require tcltest
 
 namespace import ::tcltest::*
 
+# Generate an error with $expression is not true.
+proc assert {expression {message ""}} {
+    
+    test "assert $expression" "" \
+            -body {
+                expr $expression
+            } \
+            -result 1
+}
+
+# Compare all args for equality.
+proc assert-equal args {
+    set firstArg [lindex $args 0]
+    foreach arg [lrange $args 1 end] {
+        test "assert \"$arg\" eq \"$firstArg\"" \
+                "" \
+                -body { return "$arg" } \
+                -result $firstArg
+    }
+}
+
+# Create a new test $name with code $code.
+
 source json.tcl
 
-test testTokenizeString \
-        "" \
+set d [dict create {*}{
+array {0 Tokyo 1 Seoul 2 Shanghai}
+object {Tokyo 37.8 Seoul 25.62 Shanghai 24.75}
+}]
+
+assert-equal [::fpgaedu::json::tokenize {"a"}] [list [list STRING a]]
+assert-equal [::fpgaedu::json::tokenize {"ab\nc\"de"}] \
+        [list [list STRING ab\nc\"de]]
+
+assert-equal [::fpgaedu::json::tokenize {0}] [list [list NUMBER 0]]
+assert-equal [::fpgaedu::json::tokenize {0.}] [list [list NUMBER 0.]]
+assert-equal [::fpgaedu::json::tokenize {-0.1234567890}] \
+        [list [list NUMBER -0.1234567890]]
+assert-equal [::fpgaedu::json::tokenize {-525}] [list [list NUMBER -525]]
+assert-equal [::fpgaedu::json::tokenize {1E100}] [list [list NUMBER 1E100]]
+assert-equal [::fpgaedu::json::tokenize {1.23e-99}] [list [list NUMBER 1.23e-99]]
+assert-equal [::fpgaedu::json::tokenize {1.23e-99, 0, 0}] [list \
+        [list NUMBER 1.23e-99] COMMA \
+        [list NUMBER 0] COMMA \
+        [list NUMBER 0]]
+
+assert-equal [::fpgaedu::json::tokenize true] [list [list RAW true]]
+assert-equal [::fpgaedu::json::tokenize false] [list [list RAW false]]
+assert-equal [::fpgaedu::json::tokenize null] [list [list RAW null]]
+
+assert-equal [::fpgaedu::json::parse {[1.23e-99, 0, 0]} 0] \
+        [list 1.23e-99 0 0]
+assert-equal [::fpgaedu::json::parse {[ 1.23e-99,    0,     0 ]} 0] \
+        [list 1.23e-99 0 0]
+assert-equal [::fpgaedu::json::parse {[1.23e-99, "a", [1,2,3]]} 0] \
+        [list 1.23e-99 a {1 2 3}]
+assert-equal [::fpgaedu::json::parse {["alpha", "beta", "gamma"]} 0] \
+        [list alpha beta gamma]
+assert-equal [::fpgaedu::json::parse {["alpha", "beta", "gamma"]} 1] \
+        [list 0 alpha 1 beta 2 gamma]
+assert-equal [::fpgaedu::json::parse {[true,     false,null ]} 1] \
+        [list 0 true 1 false 2 null]
+assert-equal [::fpgaedu::json::parse {[]} 1] \
+        [list]
+
+
+assert-equal [::fpgaedu::json::parse {{"key": "value"}} 0] \
+        [list key value]
+assert-equal \
+        [::fpgaedu::json::parse {{    "key"   :        "value"    }} 0] \
+        [list key value]
+assert-equal [::fpgaedu::json::parse "\t{\t \"key\"\t:    \n\"value\"\n\r}" 0] \
+        [list key value]
+assert-equal [::fpgaedu::json::parse {{"key": [1, 2, 3]}} 0] \
+        [list key {1 2 3}]
+assert-equal \
+        [::fpgaedu::json::parse {{"k1": true, "k2": false, "k3": null}} 0] \
+        [list k1 true k2 false k3 null]
+assert-equal [::fpgaedu::json::parse {{}}] [list]
+assert-equal [::fpgaedu::json::parse {[]         }] [list]
+
+assert-equal [::fpgaedu::json::parse [::fpgaedu::json::stringify $d 1] 1] $d
+
+assert-equal [::fpgaedu::json::stringify 0] 0
+assert-equal [::fpgaedu::json::stringify 0.5] 0.5
+assert-equal [::fpgaedu::json::stringify Hello] {"Hello"}
+assert-equal [::fpgaedu::json::stringify {key value}] {{"key": "value"}}
+assert-equal \
+        [::fpgaedu::json::stringify {0 a 1 b 2 c} 0] \
+        {{"0": "a", "1": "b", "2": "c"}}
+assert-equal \
+        [::fpgaedu::json::stringify {0 a 1 b 2 c} 1] \
+        {["a", "b", "c"]}
+
+# Invalid JSON.
+assert [catch {::fpgaedu::json::parse x}]
+# Trailing garbage.
+assert [catch {::fpgaedu::json::parse {"Hello" blah}}]
+
+assert-equal [::fpgaedu::json::subset {a b c} {a b c d e f}] 1
+assert-equal [::fpgaedu::json::subset {a b c d e f} {a b c}] 0
+assert-equal [::fpgaedu::json::subset {a b c d e f} {}] 0
+assert-equal [::fpgaedu::json::subset {} {a b c}] 1
+assert-equal [::fpgaedu::json::subset a a] 1
+
+# Schema tests.
+
+assert-equal [::fpgaedu::json::stringify 0 1 number] 0
+assert-equal [::fpgaedu::json::stringify 0 1 string] \"0\"
+assert-equal [::fpgaedu::json::stringify 0 1 boolean] false
+assert-equal [::fpgaedu::json::stringify false 1 boolean] false
+assert-equal [::fpgaedu::json::stringify 1 1 boolean] true
+assert-equal [::fpgaedu::json::stringify true 1 boolean] true
+assert-equal [::fpgaedu::json::stringify null 1 null] null
+
+assert [catch {::fpgaedu::json::stringify 0 1 object}]
+assert [catch {::fpgaedu::json::stringify 0 1 noise}]
+assert [catch {::fpgaedu::json::stringify 0 1 array}]
+assert [catch {::fpgaedu::json::stringify x 1 boolean}]
+assert [catch {::fpgaedu::json::stringify x 1 null}]
+
+assert-equal \
+        [::fpgaedu::json::stringify \
+                {key1 true key2 0.5 key3 1} 1 \
+                {key1 boolean key2 number key3 number}] \
+        {{"key1": true, "key2": 0.5, "key3": 1}}
+assert-equal \
+        [::fpgaedu::json::stringify \
+                {key1 true key2 0.5 key3 1} 1 \
+                {key1 string key2 string key3 string}] \
+        {{"key1": "true", "key2": "0.5", "key3": "1"}}
+assert-equal \
+        [::fpgaedu::json::stringify {key1 {0 a 1 b}} 1 ""] \
+        [::fpgaedu::json::stringify {key1 {0 a 1 b}} 1 {key1 ""}] \
+        [::fpgaedu::json::stringify {key1 {0 a 1 b}} 1 {key1 {0 string 1 string}}] \
+        {{"key1": ["a", "b"]}}
+assert [catch {
+::fpgaedu::json::stringify {key1 {0 a 1 b}} 1 {key1 {0 string 2 string}} 1
+}]
+assert [catch {
+::fpgaedu::json::stringify {key1 {0 a 1 b}} 1 {key1 {0 boolean}}
+}]
+
+assert-equal [::fpgaedu::json::stringify {} 1 ""] {""}
+assert-equal [::fpgaedu::json::stringify {} 1 string] {""}
+assert-equal [::fpgaedu::json::stringify {key {}} 1 ""] {{"key": ""}}
+assert-equal [::fpgaedu::json::stringify {0 {} 1 {}} 1 ""] {["", ""]}
+assert-equal [::fpgaedu::json::stringify {} 1 array] {[]}
+assert-equal [::fpgaedu::json::stringify {} 1 object] "{}"
+assert-equal \
+        [::fpgaedu::json::stringify \
+                {0 1 1 {0 1} 2 {0 x 1 null}} 1 \
+                {0 boolean 1 {0 boolean} 2 array}] \
+        {[true, [true], ["x", null]]}
+assert-equal \
+        [::fpgaedu::json::stringify \
+                {key1 1 key2 {0 1} key3 {0 x 1 null}} 1 \
+                {0 boolean 1 {0 boolean} 2 array}] \
+        {{"key1": 1, "key2": [1], "key3": ["x", null]}}
+
+assert-equal \
+        [::fpgaedu::json::stringify {1 {key 1} 2 {x null} 3} 0 array] \
+        {[1, {"key": 1}, 2, {"x": null}, 3]}
+assert-equal \
+        [::fpgaedu::json::stringify {1 {key 1} 2 {x null} 3} 0 string] \
+        {"1 {key 1} 2 {x null} 3"}
+assert-equal \
+        [::fpgaedu::json::stringify {1 {key 1} 2 {x null} 3} 0 \
+                {string string string string string}] \
+        {["1", "key 1", "2", "x null", "3"]}
+assert-equal \
+        [::fpgaedu::json::stringify {0 {key 1} 1 {x null}} 1 {N* string}] \
+        {["key 1", "x null"]}
+assert-equal \
+        [::fpgaedu::json::stringify {1 {key 1} 2 {x null}} 1 {* string}] \
+        {{"1": "key 1", "2": "x null"}}
+assert-equal \
+        [::fpgaedu::json::stringify {key {true false null}} 0 \
+                {key {string string string}}]\
+        {{"key": ["true", "false", "null"]}}
+assert-equal \
+        [::fpgaedu::json::stringify {0 {n 1 s 1}} 0 {0 {n number s string}}] \
+        {{"0": {"n": 1, "s": "1"}}}
+
+# tests for schema parsing
+
+test "Test ParseSchema for number 1" "" \
         -body {
-            ::fpgaedu::json::tokenize {"a"}
+            ::fpgaedu::json::parseSchema {1}
         } \
-        -result [list [list STRING a]] 
+        -result number
+
+test "Test ParseSchema for number 2.0" "" \
+        -body {
+            ::fpgaedu::json::parseSchema {2.0}
+        } \
+        -result number
 
 cleanupTests
-
-#test json \
-#        -body {
-#    source json.tcl
-#
-#    set d [dict create {*}{
-#        array {0 Tokyo 1 Seoul 2 Shanghai}
-#        object {Tokyo 37.8 Seoul 25.62 Shanghai 24.75}
-#    }]
-#
-#    assert-equal [::json::tokenize {"a"}] [list [list STRING a]]
-#    assert-equal [::json::tokenize {"ab\nc\"de"}] \
-#            [list [list STRING ab\nc\"de]]
-#
-#    assert-equal [::json::tokenize {0}] [list [list NUMBER 0]]
-#    assert-equal [::json::tokenize {0.}] [list [list NUMBER 0.]]
-#    assert-equal [::json::tokenize {-0.1234567890}] \
-#            [list [list NUMBER -0.1234567890]]
-#    assert-equal [::json::tokenize {-525}] [list [list NUMBER -525]]
-#    assert-equal [::json::tokenize {1E100}] [list [list NUMBER 1E100]]
-#    assert-equal [::json::tokenize {1.23e-99}] [list [list NUMBER 1.23e-99]]
-#    assert-equal [::json::tokenize {1.23e-99, 0, 0}] [list \
-#            [list NUMBER 1.23e-99] COMMA \
-#            [list NUMBER 0] COMMA \
-#            [list NUMBER 0]]
-#
-#    assert-equal [::json::tokenize true] [list [list RAW true]]
-#    assert-equal [::json::tokenize false] [list [list RAW false]]
-#    assert-equal [::json::tokenize null] [list [list RAW null]]
-#
-#    assert-equal [::json::parse {[1.23e-99, 0, 0]} 0] \
-#            [list 1.23e-99 0 0]
-#    assert-equal [::json::parse {[ 1.23e-99,    0,     0 ]} 0] \
-#            [list 1.23e-99 0 0]
-#    assert-equal [::json::parse {[1.23e-99, "a", [1,2,3]]} 0] \
-#            [list 1.23e-99 a {1 2 3}]
-#    assert-equal [::json::parse {["alpha", "beta", "gamma"]} 0] \
-#            [list alpha beta gamma]
-#    assert-equal [::json::parse {["alpha", "beta", "gamma"]} 1] \
-#            [list 0 alpha 1 beta 2 gamma]
-#    assert-equal [::json::parse {[true,     false,null ]} 1] \
-#            [list 0 true 1 false 2 null]
-#    assert-equal [::json::parse {[]} 1] \
-#            [list]
-#
-#
-#    assert-equal [::json::parse {{"key": "value"}} 0] \
-#            [list key value]
-#    assert-equal \
-#            [::json::parse {{    "key"   :        "value"    }} 0] \
-#            [list key value]
-#    assert-equal [::json::parse "\t{\t \"key\"\t:    \n\"value\"\n\r}" 0] \
-#            [list key value]
-#    assert-equal [::json::parse {{"key": [1, 2, 3]}} 0] \
-#            [list key {1 2 3}]
-#    assert-equal \
-#            [::json::parse {{"k1": true, "k2": false, "k3": null}} 0] \
-#            [list k1 true k2 false k3 null]
-#    assert-equal [::json::parse {{}}] [list]
-#    assert-equal [::json::parse {[]         }] [list]
-#
-#    assert-equal [::json::parse [::json::stringify $d 1] 1] $d
-#
-#    assert-equal [::json::stringify 0] 0
-#    assert-equal [::json::stringify 0.5] 0.5
-#    assert-equal [::json::stringify Hello] {"Hello"}
-#    assert-equal [::json::stringify {key value}] {{"key": "value"}}
-#    assert-equal \
-#            [::json::stringify {0 a 1 b 2 c} 0] \
-#            {{"0": "a", "1": "b", "2": "c"}}
-#    assert-equal \
-#            [::json::stringify {0 a 1 b 2 c} 1] \
-#            {["a", "b", "c"]}
-#
-#    # Invalid JSON.
-#    assert [catch {::json::parse x}]
-#    # Trailing garbage.
-#    assert [catch {::json::parse {"Hello" blah}}]
-#
-#    assert-equal [::json::subset {a b c} {a b c d e f}] 1
-#    assert-equal [::json::subset {a b c d e f} {a b c}] 0
-#    assert-equal [::json::subset {a b c d e f} {}] 0
-#    assert-equal [::json::subset {} {a b c}] 1
-#    assert-equal [::json::subset a a] 1
-#
-#    # Schema tests.
-#
-#    assert-equal [::json::stringify 0 1 number] 0
-#    assert-equal [::json::stringify 0 1 string] \"0\"
-#    assert-equal [::json::stringify 0 1 boolean] false
-#    assert-equal [::json::stringify false 1 boolean] false
-#    assert-equal [::json::stringify 1 1 boolean] true
-#    assert-equal [::json::stringify true 1 boolean] true
-#    assert-equal [::json::stringify null 1 null] null
-#
-#    assert [catch {::json::stringify 0 1 object}]
-#    assert [catch {::json::stringify 0 1 noise}]
-#    assert [catch {::json::stringify 0 1 array}]
-#    assert [catch {::json::stringify x 1 boolean}]
-#    assert [catch {::json::stringify x 1 null}]
-#
-#    assert-equal \
-#            [::json::stringify \
-#                    {key1 true key2 0.5 key3 1} 1 \
-#                    {key1 boolean key2 number key3 number}] \
-#            {{"key1": true, "key2": 0.5, "key3": 1}}
-#    assert-equal \
-#            [::json::stringify \
-#                    {key1 true key2 0.5 key3 1} 1 \
-#                    {key1 string key2 string key3 string}] \
-#            {{"key1": "true", "key2": "0.5", "key3": "1"}}
-#    assert-equal \
-#            [::json::stringify {key1 {0 a 1 b}} 1 ""] \
-#            [::json::stringify {key1 {0 a 1 b}} 1 {key1 ""}] \
-#            [::json::stringify {key1 {0 a 1 b}} 1 {key1 {0 string 1 string}}] \
-#            {{"key1": ["a", "b"]}}
-#    assert [catch {
-#        ::json::stringify {key1 {0 a 1 b}} 1 {key1 {0 string 2 string}} 1
-#    }]
-#    assert [catch {
-#        ::json::stringify {key1 {0 a 1 b}} 1 {key1 {0 boolean}}
-#    }]
-#
-#    assert-equal [::json::stringify {} 1 ""] {""}
-#    assert-equal [::json::stringify {} 1 string] {""}
-#    assert-equal [::json::stringify {key {}} 1 ""] {{"key": ""}}
-#    assert-equal [::json::stringify {0 {} 1 {}} 1 ""] {["", ""]}
-#    assert-equal [::json::stringify {} 1 array] {[]}
-#    assert-equal [::json::stringify {} 1 object] "{}"
-#    assert-equal \
-#            [::json::stringify \
-#                    {0 1 1 {0 1} 2 {0 x 1 null}} 1 \
-#                    {0 boolean 1 {0 boolean} 2 array}] \
-#            {[true, [true], ["x", null]]}
-#    assert-equal \
-#            [::json::stringify \
-#                    {key1 1 key2 {0 1} key3 {0 x 1 null}} 1 \
-#                    {0 boolean 1 {0 boolean} 2 array}] \
-#            {{"key1": 1, "key2": [1], "key3": ["x", null]}}
-#
-#    assert-equal \
-#            [::json::stringify {1 {key 1} 2 {x null} 3} 0 array] \
-#            {[1, {"key": 1}, 2, {"x": null}, 3]}
-#    assert-equal \
-#            [::json::stringify {1 {key 1} 2 {x null} 3} 0 string] \
-#            {"1 {key 1} 2 {x null} 3"}
-#    assert-equal \
-#            [::json::stringify {1 {key 1} 2 {x null} 3} 0 \
-#                    {string string string string string}] \
-#            {["1", "key 1", "2", "x null", "3"]}
-#    assert-equal \
-#            [::json::stringify {0 {key 1} 1 {x null}} 1 {N* string}] \
-#            {["key 1", "x null"]}
-#    assert-equal \
-#            [::json::stringify {1 {key 1} 2 {x null}} 1 {* string}] \
-#            {{"1": "key 1", "2": "x null"}}
-#    assert-equal \
-#            [::json::stringify {key {true false null}} 0 \
-#                    {key {string string string}}]\
-#            {{"key": ["true", "false", "null"]}}
-#    assert-equal \
-#            [::json::stringify {0 {n 1 s 1}} 0 {0 {n number s string}}] \
-#            {{"0": {"n": 1, "s": "1"}}}
-#
-#    assert-equal \
-#            [::json::stringify2 {1 {key 1} 2 {x null} 3} \
-#                    -numberDictArrays 0 \
-#                    -schema array \
-#                    -compact 1] \
-#            {[1,{"key":1},2,{"x":null},3]}
-#    assert-equal \
-#            [::json::stringify2 {1 {key 1} 2 {x null} 3} \
-#                    -numberDictArrays 0 \
-#                    -schema {string string string string string} \
-#                    -compact 1] \
-#            {["1","key 1","2","x null","3"]}
-#    assert-equal \
-#            [::json::stringify2 {1 {key 1} 2 {x null} 3 null} \
-#                    -numberDictArrays 0 \
-#                    -schema {string string string string string string} \
-#                    -compact 1] \
-#            {["1","key 1","2","x null","3","null"]}
-#    assert-equal \
-#            [::json::stringify2 {1 {key 1} 2 {x null}} \
-#                    -numberDictArrays 0 \
-#                    -schema {1 string 2 string} \
-#                    -compact 1] \
-#            {{"1":"key 1","2":"x null"}}
-#    assert-equal \
-#            [::json::stringify2 {0 {key 1} 1 {x null}} \
-#                    -numberDictArrays 1 \
-#                    -schema {N* string} \
-#                    -compact 1] \
-#            {["key 1","x null"]}
-#    assert-equal \
-#            [::json::stringify2 {1 {key 1} 2 {x null}} \
-#                    -numberDictArrays 0 \
-#                    -schema {1 string 2 string} \
-#                    -compact 1] \
-#            {{"1":"key 1","2":"x null"}}
-#    assert-equal \
-#            [::json::stringify2 {1 {key 1} 2 {x null}} \
-#                    -numberDictArrays 0 \
-#                    -schema {* string} \
-#                    -compact 1] \
-#            {{"1":"key 1","2":"x null"}}
-#    assert-equal \
-#            [::json::stringify2 {key {true false null}} \
-#                    -numberDictArrays 0 \
-#                    -schema {key {string string string}} \
-#                    -compact 1] \
-#            {{"key":["true","false","null"]}}
-#    assert-equal \
-#            [::json::stringify2 {a 0 b 1 c 2} \
-#                    -numberDictArrays 1 \
-#                    -schema {* string c number} \
-#                    -compact 1] \
-#            {{"a":"0","b":"1","c":2}}
-#    assert-equal \
-#            [::json::stringify2 {a 123 b {456 789}} \
-#                    -numberDictArrays 0 \
-#                    -schema {a string b {N* number}} \
-#                    -strictSchema 1] \
-#            {{"a": "123", "b": [456, 789]}}
-#    assert-equal \
-#            [::json::stringify2 {a b c d} \
-#                    -numberDictArrays 0 \
-#                    -schema {N* {}} \
-#                    -strictSchema 1] \
-#            {["a", "b", "c", "d"]}
-#    assert [catch {::json::stringify2 {a 0 b 1} \
-#            -numberDictArrays 0 \
-#            -schema {a string} \
-#            -strictSchema 1]}]
-#    assert-equal \
-#            [::json::stringify2 {a 0 b 1} \
-#                    -numberDictArrays 0 \
-#                    -schema {a string * string } \
-#                    -strictSchema 1] \
-#            {{"a": "0", "b": "1"}}
-#    assert [catch {::json::stringify2 {a 0 b 1} -foo bar]}]
-#}
-#
