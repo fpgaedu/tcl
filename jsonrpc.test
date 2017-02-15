@@ -1,10 +1,139 @@
+#
+# Copyright 2017 Matthijs Bos <matthijs_vlaarbos@hotmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 package require tcltest
 
 namespace import ::tcltest::*
 
-#source jsonrpc.tcl
+source json.tcl
+source jsonrpc.tcl
 
-test myFirstTest {test description} {
-    expr {1 + 2}
-} 3
+proc dictContains {expectedDictVariable actualDictVariable} {
+    foreach {key value} $expectedDictVariable {
+        if {![dict exists $actualDictVariable $key] \
+                || [dict get $actualDictVariable $key] != $value} {
+            # Missing key or unequal value in actual dict
+            return 0
+        }
+    }
+    return 1
+}
+
+customMatch dictContainsResult dictContains
+
+test "testDictMatch" "" \
+        -body {
+            dictContains {a 1 b 2} {b 2 a 1}
+        } \
+        -result 1
+
+test "testDictMatch2" "" \
+        -body {
+            dictContains {a 2 b 2} {b 2 a 1}
+        } \
+        -result 0
+
+proc assertError {cmd {result {}}} {
+    
+    if {[catch {
+        set result [eval $cmd]
+    } errorResult]} {
+        return $errorResult
+    } else {
+        # no error returned
+        error ["No error returned, instead returned \"$result\"."]
+    }
+}
+
+test "testAssertError" "" \
+        -body {
+            assertError {
+                error "hello world"
+            }
+        } \
+        -result "hello world"
+
+
+test "findHandlerTest1" "" \
+        -body {
+            set mapping [list test someHandlerMethod]
+            return [::fpgaedu::jsonrpc::findHandler $mapping test]
+        } \
+        -result someHandlerMethod
+
+test "findHandlerTest2" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::findHandler {} test
+            }
+        } \
+        -result { code -32601 } \
+        -match dictContainsResult
+
+test "throwTest1" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::throw 12345 "some error message"
+            }
+        } \
+        -result {code 12345 message "some error message"} \
+        -match dictContainsResult
+
+test "throwParseErrorTest1" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::throwParseError "Parse error."
+            }
+        } \
+        -result {code -32700 message "Parse error."} \
+        -match dictContainsResult
+
+test "throwInvalidRequestTest1" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::throwInvalidRequest "Invalid request."
+            }
+        } \
+        -result { code -32600 message "Invalid request." } \
+        -match dictContainsResult
+
+test "throwUnknownMethodTest1" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::throwUnknownMethod "Unknown method."
+            }
+        } \
+        -result { code -32601 message "Unknown method." } \
+        -match dictContainsResult
+
+test "throwInvalidParamsTest1" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::throwInvalidParams "Invalid params."
+            }
+        } \
+        -result { code -32602 message "Invalid params." } \
+        -match dictContainsResult
+
+test "throwInternalErrorTest1" "" \
+        -body {
+            assertError {
+                ::fpgaedu::jsonrpc::throwInternalError "Internal error."
+            }
+        } \
+        -result { code -32603 message "Internal error." } \
+        -match dictContainsResult
+
+cleanupTests    

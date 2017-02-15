@@ -47,7 +47,7 @@ proc ::fpgaedu::jsonrpc::handle {mapping channel} {
         }
 
         # find proper handler
-        set handler [::fpgaedu::jsonrpc::find-handler $mapping $method]
+        set handler [::fpgaedu::jsonrpc::findHandler $mapping $method]
 
         # execute handler
         set result [$handler $params]
@@ -56,33 +56,32 @@ proc ::fpgaedu::jsonrpc::handle {mapping channel} {
                 $id $idSchema] 
        
         
-    } err-result]} {
+    } errorResult]} {
         # catch error throws in section above
-        set error {}
-        dict set $error code -32603
-        dict set $error message "Internal error"
-        dict set $error data {}
+        dict set error code -32603
+        dict set error message "Internal error"
+        dict set error data {}
         set errorDataSchema {}
 
-        if {[dict exists $err-result code] 
-                && [dict exists $err-result message]} {
-            # $err-result is probably the result of a call to the 
+        if {[dict exists $errorResult code] 
+                && [dict exists $errorResult message]} {
+            # $errorResult is probably the result of a call to the 
             # ::fpgaedu::jsonrpc::throw proc
-            dict set $error code [dict get $err-result code]
-            dict set $error message [dict get $err-result message]
+            dict set error code [dict get $errorResult code]
+            dict set error message [dict get $errorResult message]
 
-            if {dict exists $err-result data} {
-                dict set $error data [dict get $err-result data]
+            if {dict exists $errorResult data} {
+                dict set error data [dict get $errorResult data]
                 set errorDataSchema {}
                 set 
             }
         } else {
-            dict set $error data err-result
-            dict set $errorDataSchema string
+            dict set error data errorResult
+            dict set errorDataSchema string
         }
 
-        set response [::fpgaedu::jsonrpc::stringifyError $error  $id 0 $idSchema]
-
+        set response [::fpgaedu::jsonrpc::stringifyError $error $errorDataSchema $id $idSchema]
+    }
     chan puts $channel response
 
     chan close $channel
@@ -92,7 +91,7 @@ proc ::fpgaedu::jsonrpc::parseRequest {data} {
 
     if {[catch {
         set json [::json::parse $data 0]
-        set schema [::json::parse-schema $data 0]
+        set schema [::json::parseSchema $data 0]
     } err ]} {
         ::fpgaedu::jsonrpc::throwParseError $err
     }
@@ -106,21 +105,21 @@ proc ::fpgaedu::jsonrpc::validateRequest {data schema} {
         ::fpgaedu::jsonrpc::throwInvalidRequest "Missing member jsonrpc"
     }
     if {[dict get $schema jsonrpc] != string} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for member jsonrpc"}
+        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for member jsonrpc"
     }
     if {[dict get $data jsonrpc] != "2.0"} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal value for member jsonrpc"}
+        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal value for member jsonrpc"
     }
  
     #check method member
     if {![dict exists $data method]} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Missing member method"}
+        ::fpgaedu::jsonrpc::throwInvalidRequest "Missing member method"
     }
     if {[dict get $schema method] != string} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for member method"}
+        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for member method"
     }
     if {[dict get $data method] == ""} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal value for member method"}
+        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal value for member method"
     }
 
     #check id member 
@@ -133,19 +132,17 @@ proc ::fpgaedu::jsonrpc::validateRequest {data schema} {
 
 proc ::fpgaedu::jsonrpc::stringifyResult {data dataSchema id idSchema} {
 
-   set response {} 
-   dict set $response jsonrpc 2.0
-   dict set $response id $id
-   dict set $response result $data
+   dict set response jsonrpc 2.0
+   dict set response id $id
+   dict set response result $data
 
-   set schema {}
-   dict set $schema jsonrpc string
-   dict set $schema id $idSchema
-   dict set $schema result $dataSchema
+   dict set schema jsonrpc string
+   dict set schema id $idSchema
+   dict set schema result $dataSchema
 
-   if {[dict get $response result] eq {}} {
-       dict set $response result null
-       dict set $schema result null
+   if {[dict get $response result] == {}} {
+       dict set response result null
+       dict set schema result null
    }
 
    ::json::stringify $response 0 $schema 
@@ -153,46 +150,46 @@ proc ::fpgaedu::jsonrpc::stringifyResult {data dataSchema id idSchema} {
 
 proc ::fpgaedu::jsonrpc::stringifyError {error errorDataSchema id idSchema} {
 
-   set response {} 
-   dict set $response jsonrpc 2.0
-   dict set $response id $id
-   dict set $response error $error 
+   dict set response jsonrpc 2.0
+   dict set response id $id
+   dict set response error $error 
 
-   set schema {}
-   dict set $schema jsonrpc string
-   dict set $schema id $idSchema
-   dict set $schema error code number
-   dict set $schema error message string
+   dict set schema jsonrpc string
+   dict set schema id $idSchema
+   dict set schema error code number
+   dict set schema error message string
    if {dict exists $error data} {
-       dict set $schema error data $errorDataSchema
+       dict set schema error data $errorDataSchema
    }
 
    return ::json::stringify $response 0 $schema
 
 }
 
-proc ::fpgaedu::jsonrpc::find-handler {mapping, method} {
-    try {
-        return [dict get $mapping method]
-    } on error {result} {
+proc ::fpgaedu::jsonrpc::findHandler {mapping method} {
+    
+    if {[catch {
+        set handler [dict get $mapping $method]
+    } errorResult]} {
         ::fpgaedu::jsonrpc::throwUnknownMethod "Unknown method $method"
     }
+
+    return $handler
 }
 
-proc ::fpgaedu::jsonrpc::throw {code message {data {} {dataSchema ""}} {
+proc ::fpgaedu::jsonrpc::throw {code message {data {}} {dataSchema {}}} {
 
-    set message-dict {}
-    dict set $message-dict code $code
-    dict set $message-dict message $message
+    dict set result code $code
+    dict set result message $message
 
     if {$data ne {}} {
-        dict set $message-dict data $data 
-    if {$data schema ne ""} {
-            dict set $message-dict dataSchema $dataSchema
+        dict set result data $data 
+        if {$data schema ne ""} {
+            dict set result dataSchema $dataSchema
         }
     }
 
-    error $message-dict
+    error $result
 }
 
 proc ::fpgaedu::jsonrpc::throwParseError {message {data ""} {dataSchema ""}} {
