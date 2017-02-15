@@ -55,9 +55,9 @@ proc ::fpgaedu::json::parse {str {numberDictArrays 1}} {
     }
 }
 
-proc ::fpgaedu::json::parse-schema {str {numberDictArrays 1}} {
+proc ::fpgaedu::json::parseSchema {str {numberDictArrays 1}} {
     set tokens [::fpgaedu::json::tokenize $str]
-    set result [::fpgaedu::json::decode-schema $tokens $numberDictArrays]
+    set result [::fpgaedu::json::decodeSchema $tokens $numberDictArrays]
     if {[lindex $result 1] == [llength $tokens]} {
         return [lindex $result 0]
     } else {
@@ -103,7 +103,7 @@ proc ::fpgaedu::json::stringify {data {numberDictArrays 1} {schema ""}
 
     set schemaForceArray [expr {
         ($schema eq "array") ||
-        ([lindex $schema 0] eq $::json::everyElement) ||
+        ([lindex $schema 0] eq $fpgaedu::json::everyElement) ||
         ($numberDictArrays && $schemaValidDict &&
                 [dict exists $schema $::fpgaedu::json::everyElement]) ||
         (!$numberDictArrays && $validDict && $schemaValidDict &&
@@ -142,16 +142,16 @@ proc ::fpgaedu::json::stringify {data {numberDictArrays 1} {schema ""}
         set isArray [expr {
             !$schemaForceObject &&
             (($numberDictArrays && $validDict &&
-                            [::fpgaedu::json::number-dict? $data]) ||
+                            [::fpgaedu::json::isNumberDict $data]) ||
                     (!$numberDictArrays && !$validDict) ||
                     ($schemaForceArray && (!$numberDictArrays || $validDict)))
         }]
 
         if {$isArray} {
-            return [::fpgaedu::json::stringify-array $data \
+            return [::fpgaedu::json::stringifyArray $data \
                     $numberDictArrays $schema $strictSchema $compact]
         } elseif {$validDict} {
-            return [::fpgaedu::json::stringify-object $data \
+            return [::fpgaedu::json::stringifyObject $data \
                     $numberDictArrays $schema $strictSchema $compact]
         } else {
             error "invalid schema \"$schema\" for list \"$data\""
@@ -160,36 +160,10 @@ proc ::fpgaedu::json::stringify {data {numberDictArrays 1} {schema ""}
     error {this should not be reached}
 }
 
-# A convenience wrapper for ::fpgaedu::json::stringify with named parameters.
-proc ::fpgaedu::json::stringify2 {data args} {
-    set numberDictArrays  [::fpgaedu::json::get-option  -numberDictArrays 1  ]
-    set schema            [::fpgaedu::json::get-option  -schema {}           ]
-    set strictSchema      [::fpgaedu::json::get-option  -strictSchema 0      ]
-    set compact           [::fpgaedu::json::get-option  -compact 0           ]
-    if {[llength [dict keys $args]] > 0} {
-        error "unknown options: [dict keys $args]"
-    }
-
-    return [::fpgaedu::json::stringify \
-            $data $numberDictArrays $schema $strictSchema $compact]
-}
 
 ### The private API: can change at any time.
 
 ## Utility procedures.
-
-# If $option is a key in $args of the caller unset it and return its value.
-# If not, return $default.
-proc ::fpgaedu::json::get-option {option default} {
-    upvar args dictionary
-    if {[dict exists $dictionary $option]} {
-        set result [dict get $dictionary $option]
-        dict unset dictionary $option
-    } else {
-        set result $default
-    }
-    return $result
-}
 
 # Return 1 if the elements in $a are a subset of those in $b and and 0
 # otherwise.
@@ -207,7 +181,7 @@ proc ::fpgaedu::json::subset {a b} {
 ## Procedures used by ::fpgaedu::json::stringify.
 
 # Return 1 if the keys in dictionary are numbers 0, 1, 2... and 0 otherwise.
-proc ::fpgaedu::json::number-dict? {dictionary} {
+proc ::fpgaedu::json::isNumberDict {dictionary} {
     set i 0
     foreach {key _} $dictionary {
         if {$key != $i} {
@@ -221,7 +195,7 @@ proc ::fpgaedu::json::number-dict? {dictionary} {
 # Return the value for key $key from $schema if the key is present. Otherwise
 # either return the default value "" or, if $strictSchema is true, generate an
 # error.
-proc ::fpgaedu::json::get-schema-by-key {schema key {strictSchema 0}} {
+proc ::fpgaedu::json::getSchemaByKey {schema key {strictSchema 0}} {
     if {[dict exists $schema $key]} {
         set valueSchema [dict get $schema $key]
     } elseif {[dict exists $schema $::fpgaedu::json::everyKey]} {
@@ -237,7 +211,7 @@ proc ::fpgaedu::json::get-schema-by-key {schema key {strictSchema 0}} {
     }
 }
 
-proc ::fpgaedu::json::stringify-array {array {numberDictArrays 1} {schema ""}
+proc ::fpgaedu::json::stringifyArray {array {numberDictArrays 1} {schema ""}
         {strictSchema 0} {compact 0}} {
     set arrayElements {}
     if {$numberDictArrays} {
@@ -245,7 +219,7 @@ proc ::fpgaedu::json::stringify-array {array {numberDictArrays 1} {schema ""}
             if {($schema eq "") || ($schema eq "array")} {
                 set valueSchema {}
             } else {
-                set valueSchema [::fpgaedu::json::get-schema-by-key \
+                set valueSchema [::fpgaedu::json::getSchemaByKey \
                         $schema $key $strictSchema]
             }
             lappend arrayElements [::fpgaedu::json::stringify $value 1 \
@@ -274,7 +248,7 @@ proc ::fpgaedu::json::stringify-array {array {numberDictArrays 1} {schema ""}
     return "\[[join $arrayElements $elementSeparator]\]"
 }
 
-proc ::fpgaedu::json::stringify-object {dictionary {numberDictArrays 1} {schema ""}
+proc ::fpgaedu::json::stringifyObject {dictionary {numberDictArrays 1} {schema ""}
         {strictSchema 0} {compact 0}} {
     set objectDict {}
     if {$compact} {
@@ -289,7 +263,7 @@ proc ::fpgaedu::json::stringify-object {dictionary {numberDictArrays 1} {schema 
         if {($schema eq "") || ($schema eq "object")} {
             set valueSchema {}
         } else {
-            set valueSchema [::fpgaedu::json::get-schema-by-key \
+            set valueSchema [::fpgaedu::json::getSchemaByKey \
                 $schema $key $strictSchema]
         }
         lappend objectDict "\"$key\"$keyValueSeparator[::fpgaedu::json::stringify \
@@ -416,7 +390,7 @@ proc ::fpgaedu::json::decode {tokens numberDictArrays {startingOffset 0}} {
     error {this should not be reached}
 }
 
-proc ::fpgaedu::json::decode-schema {tokens numberDictArrays {startingOffset 0}} {
+proc ::fpgaedu::json::decodeSchema {tokens numberDictArrays {startingOffset 0}} {
     set i $startingOffset
     set nextToken [list {} {
         uplevel 1 {
@@ -485,7 +459,7 @@ proc ::fpgaedu::json::decode-schema {tokens numberDictArrays {startingOffset 0}}
                 apply $errorMessage "object expected a colon, got $token"
             }
 
-            lassign [::fpgaedu::json::decode-schema $tokens $numberDictArrays $i] \
+            lassign [::fpgaedu::json::decodeSchema $tokens $numberDictArrays $i] \
                     value tokensInValue
             lappend object $key $value
             incr i $tokensInValue
@@ -549,7 +523,7 @@ proc ::fpgaedu::json::tokenize json {
         set char [string index $json $i]
         switch -exact -- $char {
             \" {
-                set value [::fpgaedu::json::analyze-string [string range $json $i end]]
+                set value [::fpgaedu::json::analyzeString [string range $json $i end]]
                 lappend tokens \
                         [list STRING [subst -nocommand -novariables $value]]
 
@@ -580,13 +554,13 @@ proc ::fpgaedu::json::tokenize json {
             \r {}
             default {
                 if {$char in {- 0 1 2 3 4 5 6 7 8 9}} {
-                    set value [::fpgaedu::json::analyze-number \
+                    set value [::fpgaedu::json::analyzeNumber \
                             [string range $json $i end]]
                     lappend tokens [list NUMBER $value]
 
                     incr i [expr {[string length $value] - 1}]
                 } elseif {$char in {t f n}} {
-                    set value [::fpgaedu::json::analyze-boolean-or-null \
+                    set value [::fpgaedu::json::analyzeBooleanOrNull \
                             [string range $json $i end]]
                     lappend tokens [list RAW $value]
 
@@ -601,7 +575,7 @@ proc ::fpgaedu::json::tokenize json {
 }
 
 # Return the beginning of $str parsed as "true", "false" or "null".
-proc ::fpgaedu::json::analyze-boolean-or-null str {
+proc ::fpgaedu::json::analyzeBooleanOrNull str {
     regexp {^(true|false|null)} $str value
     if {![info exists value]} {
         error "can't parse value as JSON true/false/null: [list $str]"
@@ -610,7 +584,7 @@ proc ::fpgaedu::json::analyze-boolean-or-null str {
 }
 
 # Return the beginning of $str parsed as a JSON string.
-proc ::fpgaedu::json::analyze-string str {
+proc ::fpgaedu::json::analyzeString str {
     if {[regexp {^"((?:[^"\\]|\\.)*)"} $str _ result]} {
         return $result
     } else {
@@ -619,7 +593,7 @@ proc ::fpgaedu::json::analyze-string str {
 }
 
 # Return $str parsed as a JSON number.
-proc ::fpgaedu::json::analyze-number str {
+proc ::fpgaedu::json::analyzeNumber str {
     if {[regexp -- {^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(:?(?:e|E)[+-]?[0-9]*)?} \
             $str result]} {
         #            [][ integer part  ][ optional  ][  optional exponent  ]
