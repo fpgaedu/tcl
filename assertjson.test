@@ -50,4 +50,12 @@ test "testAssertObjectContainsKey3" "" \
             }
         }
 
+test "testAssertObjectContainsKey4" "" \
+        -body {
+            set json {"some: {\"string\": \"that looks like an object\" }"]}
+            assertThrows {
+                assertObjectContainsKey $json some
+            }
+        }
+
 cleanupTests
