@@ -13,127 +13,119 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package require tcltest
+lappend auto_path .
+
+package require Tcl 8.5
+package require tcltest 2.3.8
+package require fpgaedu::jsonrpc 1.0
+package require fpgaedu::assert 1.0
 
 namespace import ::tcltest::*
-
-source json.tcl
-source jsonrpc.tcl
-
-proc dictContains {expectedDictVariable actualDictVariable} {
-    foreach {key value} $expectedDictVariable {
-        if {![dict exists $actualDictVariable $key] \
-                || [dict get $actualDictVariable $key] != $value} {
-            # Missing key or unequal value in actual dict
-            return 0
-        }
-    }
-    return 1
-}
-
-customMatch dictContainsResult dictContains
-
-test "testDictMatch" "" \
-        -body {
-            dictContains {a 1 b 2} {b 2 a 1}
-        } \
-        -result 1
-
-test "testDictMatch2" "" \
-        -body {
-            dictContains {a 2 b 2} {b 2 a 1}
-        } \
-        -result 0
-
-proc assertError {cmd {result {}}} {
-    
-    if {[catch {
-        set result [eval $cmd]
-    } errorResult]} {
-        return $errorResult
-    } else {
-        # no error returned
-        error ["No error returned, instead returned \"$result\"."]
-    }
-}
-
-test "testAssertError" "" \
-        -body {
-            assertError {
-                error "hello world"
-            }
-        } \
-        -result "hello world"
-
+namespace import ::fpgaedu::assert::*
 
 test "findHandlerTest1" "" \
         -body {
             set mapping [list test someHandlerMethod]
-            return [::fpgaedu::jsonrpc::findHandler $mapping test]
-        } \
-        -result someHandlerMethod
+            set handler [::fpgaedu::jsonrpc::findHandler $mapping test] 
+            assertEquals $handler someHandlerMethod
+        }
 
 test "findHandlerTest2" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::findHandler {} test
-            }
-        } \
-        -result { code -32601 } \
-        -match dictContainsResult
+            } errorResult
+
+            assertDictContains $errorResult code -32601
+        } 
 
 test "throwTest1" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::throw 12345 "some error message"
-            }
-        } \
-        -result {code 12345 message "some error message"} \
-        -match dictContainsResult
+            } errorResult
+
+            assertDictContains $errorResult code 12345
+            assertDictContains $errorResult message "some error message"
+        } 
 
 test "throwParseErrorTest1" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::throwParseError "Parse error."
-            }
-        } \
-        -result {code -32700 message "Parse error."} \
-        -match dictContainsResult
+            } errorResult
+
+            assertDictContains $errorResult code -32700
+            assertDictContains $errorResult message "Parse error."
+        } 
 
 test "throwInvalidRequestTest1" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::throwInvalidRequest "Invalid request."
-            }
-        } \
-        -result { code -32600 message "Invalid request." } \
-        -match dictContainsResult
+            } errorResult
+
+            assertDictContains $errorResult code -32600
+            assertDictContains $errorResult message "Invalid request."
+        }
 
 test "throwUnknownMethodTest1" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::throwUnknownMethod "Unknown method."
-            }
-        } \
-        -result { code -32601 message "Unknown method." } \
-        -match dictContainsResult
+            } errorResult
+
+            assertDictContains $errorResult code -32601
+            assertDictContains $errorResult message "Unknown method."
+        }
 
 test "throwInvalidParamsTest1" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::throwInvalidParams "Invalid params."
-            }
-        } \
-        -result { code -32602 message "Invalid params." } \
-        -match dictContainsResult
+            } errorResult
+
+            assertDictContains $errorResult code -32602
+            assertDictContains $errorResult message "Invalid params."
+        }
 
 test "throwInternalErrorTest1" "" \
         -body {
-            assertError {
+            assertThrows {
                 ::fpgaedu::jsonrpc::throwInternalError "Internal error."
+            } errorResult
+
+            assertDictContains $errorResult code -32603
+            assertDictContains $errorResult message "Internal error."
+        }
+
+# test "validateRequestTest1" "" \
+#         -body {
+#             set requestData {jsonrpc 2.0 method test}
+#             set requestSchema {jsonrpc string method string}
+#             set valid [::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema]
+#             assertEquals $valid 1
+#         }
+# test "validateRequestTest2" "" \
+#         -body {
+#             set requestData { jsonrpc 2.0 method test }
+#             set requestSchema { jsonrpc number method string }
+#             assertError {
+#                 ::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema
+#             }
+#         } \
+#         -result { code -32600 message {Illegal type for member jsonrpc} } \
+#         -match dictContainsResult
+
+test "handleTest1" "" \
+        -body {
+            proc testHandler {params} {
+                return "hello"
             }
-        } \
-        -result { code -32603 message "Internal error." } \
-        -match dictContainsResult
+            set request {{"jsonrpc": "2.0", "method": "test", "params": [42, 23], "id": 1}}
+            set mapping {test testHandler}
+            return [::fpgaedu::jsonrpc::handle $mapping $request]
+        }
+
 
 cleanupTests    
