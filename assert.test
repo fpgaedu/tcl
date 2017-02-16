@@ -1,0 +1,156 @@
+#
+# Copyright 2017 Matthijs Bos <matthijs_vlaarbos@hotmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+lappend auto_path .
+
+package require Tcl 8.5
+package require tcltest 2.3.8
+package require fpgaedu::assert 1.0
+
+namespace import ::tcltest::*
+namespace import ::fpgaedu::assert::*
+
+proc matchAll {expected actual} {
+    return 1
+}
+
+customMatch all matchAll
+
+test "testAssertThrows1" "" \
+        -body {
+            assertThrows {
+                error
+            } 
+            
+            # assertThrows {
+            #     error "error message"
+            # } result
+            # assertEquals $result "error message"
+            
+            set msg "some message 2"
+            assertThrows {
+                error $msg
+            } result2
+            assertEquals $result2 "some message 2"
+
+        }
+
+test "testAssertThrows2" "" \
+        -body {
+            assertThrows {
+                return test
+            }
+        } \
+        -returnCodes error \
+        -match all
+
+test "testAssertEquals1" "" \
+        -body {
+            assertEquals 1 1
+        }
+
+test "testAssertEquals2" "" \
+        -body {
+            assertThrows {
+                assertEquals 1 0
+            }
+        }
+    
+test "testAssertEquals3" "" \
+        -body {
+            assertEquals {} ""
+        }
+
+test "testAssertTrue" "" \
+        -body {
+            assertTrue 1
+            assertTrue {"hello" != "world"}
+
+            assertThrows {
+                assertTrue 0
+            }
+            assertThrows {
+                assertTrue {"hello" == "world"}
+            }
+        }
+
+test "testAssertFalse" "" \
+        -body {
+            assertFalse 0
+
+            assertThrows {
+                assertFalse 1
+            }
+        }
+
+test "testAssertStringContains" "" \
+        -body {
+            assertStringContains "hello world" "hello"
+            assertStringContains {{"some": "json"}} json
+            assertStringContains 12345 1
+
+            assertThrows {
+                assertStringContains "trolololo" lalala
+            }
+        }
+
+test "testAssertListContains" "" \
+        -body {
+            assertListContains "hello world" hello
+            assertListContains {hello world} hello
+            assertListContains hello hello
+            assertListContains {some list {inner list}} {inner list}
+
+            assertThrows {
+                assertListContains {some list} {some other list}
+            }
+        }
+
+test "testAssertDictContainsKey" "" \
+        -body {
+            dict set testDict a 1
+            dict set testDict b 2
+
+            assertDictContainsKey $testDict a
+            assertDictContainsKey $testDict b
+            
+            assertThrows {
+                assertDictContainsKey $testDict 1
+            }
+            assertThrows {
+                assertDictContainsKey $testDict 2
+            }
+        }
+
+test "testAssertDictContains" "" \
+        -body {
+            dict set testDict a 1
+            
+            assertDictContains $testDict a 1
+
+            assertThrows {
+                assertDictContains a 2
+            }
+        }
+
+test "testAssertionError1" "" \
+        -body {
+            ::fpgaedu::assert::assertionError "this is a test message" 
+        } \
+        -returnCodes error \
+        -result "Assertion error: this is a test message"
+
+
+cleanupTests
