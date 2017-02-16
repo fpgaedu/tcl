@@ -489,7 +489,7 @@ proc ::fpgaedu::json::decodeSchema {tokens numberDictArrays {startingOffset 0}} 
             # Use the last token as part of the value for recursive decoding.
             incr i -1
 
-            lassign [:::fpgaedu:json::decode-schema $tokens $numberDictArrays $i] \
+            lassign [::fpgaedu::json::decodeSchema $tokens $numberDictArrays $i] \
                     value tokensInValue
             if {$numberDictArrays} {
                 lappend array $j $value
