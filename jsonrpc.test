@@ -117,15 +117,15 @@ test "throwInternalErrorTest1" "" \
 #         -result { code -32600 message {Illegal type for member jsonrpc} } \
 #         -match dictContainsResult
 
-test "handleTest1" "" \
-        -body {
-            proc testHandler {params} {
-                return "hello"
-            }
-            set request {{"jsonrpc": "2.0", "method": "test", "params": [42, 23], "id": 1}}
-            set mapping {test testHandler}
-            return [::fpgaedu::jsonrpc::handle $mapping $request]
-        }
+# test "handleTest1" "" \
+#         -body {
+#             proc testHandler {params} {
+#                 return "hello"
+#             }
+#             set request {{"jsonrpc": "2.0", "method": "test", "params": [42, 23], "id": 1}}
+#             set mapping {test testHandler}
+#             return [::fpgaedu::jsonrpc::handle $mapping $request]
+#         }
 
 
 cleanupTests    
