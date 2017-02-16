@@ -36,9 +36,9 @@ test "testAssertObjectContainsKey1" "" \
 test "testAssertObjectContainsKey2" "" \
         -body {
             set json {{"outer": {"inner": "value"}}}
-            assertObjectContainsKey $json outer inner
+            assertObjectContainsKey $json {outer inner}
             assertThrows {
-                assertObjectContainsKey $json outer invalidkey
+                assertObjectContainsKey $json {outer invalidkey}
             }
         }
 
@@ -56,6 +56,13 @@ test "testAssertObjectContainsKey4" "" \
             assertThrows {
                 assertObjectContainsKey $json some
             }
+        }
+
+    
+test "testAssertObjectContainsString1" "" \
+        -body {
+            set json {{"hello": "world"}}
+            assertObjectContainsString $json "hello" "world"
         }
 
 cleanupTests

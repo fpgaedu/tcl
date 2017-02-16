@@ -21,17 +21,35 @@ package provide fpgaedu::assert::json 1.0
 
 namespace eval ::fpgaedu::assert::json {
 
-    namespace export assertObjectContainsKey
+    namespace export assertObjectContainsKey \
+            assertObjectContainsString
 
-    proc assertObjectContainsKey {json args} {
+    proc assertObjectContainsKey {json path} {
         if {[catch {
             set data [::fpgaedu::json::parse $json 1]
         } errorResult]} {
             ::fpgaedu::assert::assertionError "Error while parsing json: $errorResult" 1
         }
 
-        if {![dict exists $data {*}$args ]} {
-            ::fpgaedu::assert::assertionError "Could not find $args in $json" 1
+        if {![dict exists $data {*}$path ]} {
+            ::fpgaedu::assert::assertionError "Could not find an entry $path in $json" 1
+        }
+    }
+
+    proc assertObjectContainsString {json path value} {
+        set data [::fpgaedu::json::parse $json 1]
+        set schema [::fpgaedu::json::parseSchema $json 1]
+
+        if {![dict exists $data {*}$path ]} {
+            ::fpgaedu::assert::assertionError "Could not find an entry $path in $json" 1
+        }
+        
+        if {[dict get $schema {*}$path] != "string"} {
+            ::fpgaedu::assert::assertionError "$path in $json is not a string" 1
+        }
+
+        if {[dict get $data {*}$path] != $value} {
+            ::fpgaedu::assert::assertionError "$path in $json is not $value" 1
         }
     }
 }
