@@ -34,8 +34,8 @@
 #    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #    POSSIBILITY OF SUCH DAMAGE.
 
-
-package require tcltest
+package require Tcl 8.5
+package require tcltest 2.3.8
 
 namespace import ::tcltest::*
 
