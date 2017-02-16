@@ -33,7 +33,7 @@ proc ::fpgaedu::jsonrpc::handle {mapping request} {
     set id null
     set idSchema null
 
-    # if {[catch {
+    if {[catch {
         # parse request data
         lassign [::fpgaedu::jsonrpc::parseRequest $request] data schema
 
