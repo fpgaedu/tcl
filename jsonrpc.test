@@ -101,36 +101,49 @@ test "throwInternalErrorTest1" "" \
             assertDictContains $errorResult message "Internal error."
         }
 
-# test "validateRequestTest1" "" \
-#         -body {
-#             set requestData {jsonrpc 2.0 method test}
-#             set requestSchema {jsonrpc string method string}
-#             set valid [::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema]
-#             assertEquals $valid 1
-#         }
-# test "validateRequestTest2" "" \
-#         -body {
-#             set requestData { jsonrpc 2.0 method test }
-#             set requestSchema { jsonrpc number method string }
-#             assertError {
-#                 ::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema
-#             }
-#         } \
-#         -result { code -32600 message {Illegal type for member jsonrpc} } \
-#         -match dictContainsResult
+test "validateRequestTest1" "" \
+        -body {
+            set requestData {jsonrpc 2.0 method test}
+            set requestSchema {jsonrpc string method string}
+            assertTrue [::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema]
+             
+        }
+
+test "validateRequestTest2" "" \
+        -body {
+            set requestData { jsonrpc 2.0 method test }
+            set requestSchema { jsonrpc number method string }
+            assertThrows {
+                ::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema
+            } errorResult
+
+            assertDictContains $errorResult code -32600
+        } 
 
 test "handleTest1" "" \
         -body {
             proc testHandler {params} {
                 return "hello"
             }
-            set request {{"jsonrpc": "2.0", "method": "test", "params": [42, 23], "id": 1}}
+            set request {{"jsonrpc": "2.0", 
+                          "method": "test",
+                          "params": [42, 23], 
+                          "id": 1}}
             set mapping {test testHandler}
             set response [::fpgaedu::jsonrpc::handle $mapping $request]
 
-            assertObjectContainsKey $response jsonrpc
             assertObjectContainsString $response jsonrpc 2.0
         }
 
+test "handleTest2" "" \
+        -body {
+            proc testHandler {params} {
+                return {
+                    {hello world this is a string array}
+                    
+                }
+
+            }
+        }
 
 cleanupTests    
