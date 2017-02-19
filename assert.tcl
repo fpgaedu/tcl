@@ -67,7 +67,8 @@ proc ::fpgaedu::assert::assertFalse {expr} {
 proc ::fpgaedu::assert::assertStringContains {string value} {
     
     if {[string first [join $value] [join $string]] == -1} {
-        ::fpgaedu::assert::assertionError "String \"$string\" does not contain \"$value\"" 1
+        ::fpgaedu::assert::assertionError "String \"$string\" does not contain \
+                \"$value\"" 1
     }
 }
 
@@ -78,23 +79,23 @@ proc ::fpgaedu::assert::assertListContains {list value} {
 }
 
 proc ::fpgaedu::assert::assertDictContainsKey {dictionary args} {
-    set key [lindex $args 0]
-    set value [lindex $args 1]
+    set key [lrange $args 0 [expr [llength $args] - 1]]
 
-    if {![dict exists $dictionary $key]} {
-        ::fpgaedu::assert::assertionError "dictionary does not contain key \"$key\"" 1
-    }    
+    if {![dict exists $dictionary {*}$key]} {
+        ::fpgaedu::assert::assertionError "dictionary does not contain key \
+                \"$key\"" 1
+    }
 }
 
 proc ::fpgaedu::assert::assertDictContains {dictionary args} {
-    set key [lindex $args 0]
-    set value [lindex $args 1]
+    set key [lrange $args 0 [expr [llength $args] - 2]]
+    set value [lindex $args [expr [llength $args] - 1]]
 
-    ::fpgaedu::assert::assertDictContainsKey $dictionary $key $value
-    # {*}args
+    set dictValue [dict get $dictionary {*}$key]
 
-    if {[dict get $dictionary $key] != $value} {
-        ::fpgaedu::assert::assertionError "dictionary does not contain value \"$value\" for key \"$key\"" 1
+    if {$dictValue != $value} {
+        ::fpgaedu::assert::assertionError "dictionary does not contain value \
+                \"$value\" for key \"$key\", instead contains \"$dictValue\"" 1
     }
 }
 
