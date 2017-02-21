@@ -1,0 +1,184 @@
+#
+# Copyright 2017 Matthijs Bos <matthijs_vlaarbos@hotmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+lappend auto_path .
+
+package require Tcl 8.5
+package require tcltest 2.3.8
+package require fpgaedu::assert 1.0
+package require fpgaedu::json2 1.0
+
+namespace import ::tcltest::*
+namespace import ::fpgaedu::assert::*
+namespace import ::fpgaedu::json2::json
+
+test "testCreateObject" "" \
+        -body {
+            json create varName object
+
+            assertDictContains $varName data {}
+            assertDictContains $varName schema type object
+            assertDictContains $varName schema members {}
+        } \
+        -cleanup {
+            unset varName
+        }
+
+
+test "testCreateArray" "" \
+        -body {
+            json create varName array
+
+            assertDictContains $varName data {}
+            assertDictContains $varName schema type array
+            assertDictContains $varName schema members {}
+        } \
+        -cleanup {
+            unset varName
+        }
+
+test "testCreateString" "" \
+        -body {
+            json create varName string
+            
+            assertDictContains $varName data {}
+            assertDictContains $varName schema type string
+            
+            json create varName2 string "hello world"
+            
+            assertDictContains $varName2 data "hello world"
+            assertDictContains $varName2 schema type string
+        } \
+        -cleanup {
+            unset varName 
+            unset varName2
+        }
+
+test "testCreateNumber" "" \
+        -body {
+            json create varName number
+
+            assertDictContains $varName data 0
+            assertDictContains $varName schema type number
+
+            json create varName2 number 2
+            
+            assertDictContains $varName2 data 2
+            assertDictContains $varName2 schema type number
+        } \
+        -cleanup {
+            unset varName 
+            unset varName2
+        }
+
+test "testCreateBoolean" "" \
+        -body {
+            json create varName boolean true
+
+            assertDictContains $varName data 1
+            assertDictContains $varName schema type boolean
+        } \
+        -cleanup {
+            unset varName 
+        }
+
+test "testCreateNull" "" \
+        -body {
+            json create varName null
+
+            assertDictContains $varName data null
+            assertDictContains $varName schema type null
+        } \
+        -cleanup {
+            unset varName 
+        }
+
+test "testGet1" "" \
+        -setup {
+            set jsonVariable {
+                data {
+                    a "hello world"
+                    b 1234
+                    c {
+                        d True
+                        e {
+                            0 "index 0"
+                            1 "index 1"
+                            2 {
+                                f null
+                            }
+                        }
+                    }
+                }
+                schema {
+                    type object
+                    members {
+                        a { type string }
+                        b { type number }
+                        c { type object
+                            members {
+                                d { type boolean }
+                                e { type array 
+                                    members {
+                                        0 { type string }
+                                        1 { type string }
+                                        2 object {
+                                            f { type null }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } \
+        -body {
+            assertEquals [json get $jsonVariable a] "hello world"
+            assertEquals [json get $jsonVariable b] 1234
+            assertEquals [json get $jsonVariable c.d] True
+            assertEquals [json get $jsonVariable c d] True
+            assertEquals [json get $jsonVariable c.e.0] "index 0"
+            assertEquals [json get $jsonVariable c e 0] "index 0"
+            assertEquals [json get $jsonVariable c.e.1] "index 1"
+            assertEquals [json get $jsonVariable c.e.2.f] null
+
+            assertThrows {
+                json get $jsonVariable c
+            }
+        } \
+        -cleanup {
+            unset jsonVariable
+        }
+
+# test "testSet1" "" \
+#         -body {
+#             json create varName object
+#             json set varName a string "hello world"
+
+#             assertDictContains $varName data a "hello world"
+#             assertDictContains $varName schema type object
+#             assertDictContains $varName schema members a type string
+
+#             json set varName b object
+#             assertDictContains $varName data b {}
+#             assertDictContains $varName schema members b type object
+#             assertDictContains $varName schema members b members {}
+#         } \
+#         -cleanup {
+#             unset varName
+#         }
+
+cleanupTests
