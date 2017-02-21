@@ -70,22 +70,23 @@ proc ::fpgaedu::vivado::GetHardwareInfo {} {
     return $result
 }
 
-# Programs a FPGA
+# ::fpgaedu::vivado::Program bitstreamPath ?-target target? ?-device device?
 proc ::fpgaedu::vivado::Program {bitstreamPath {target {}} {device {}}} {
     
     open_hw
+    current_hw_server [connect_hw_server]
     
-    set server [connect_hw_server]
-
     if {$target == {}} {
         current_hw_target [lindex [get_hw_targets] 0]
     } else {
-        current_hw_target $target
+        current_hw_target [lindex [get_hw_targets -filter "NAME == $target"] 0]
     }
     open_hw_target
-
+    
     if {$device == {}} {
         current_hw_device [lindex [get_hw_devices] 0]
+    } else {
+        current_hw_device [lindex [get_hw_devices -filter "NAME == $device"] 0]
     }
 
     set_property PROGRAM.FILE $bitstreamPath [current_hw_device]
@@ -94,4 +95,6 @@ proc ::fpgaedu::vivado::Program {bitstreamPath {target {}} {device {}}} {
     close_hw_target
     disconnect_hw_server
     close_hw
+
+    return
 }
