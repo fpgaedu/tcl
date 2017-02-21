@@ -24,22 +24,55 @@ namespace import ::tcltest::*
 # Define test constraint based on whether the Vivado package can be loaded. This
 # is used to prevent Vivado-specific tests from failing while being executed
 # by a regular Tcl shell in which Vivado's custom commands are not available. 
-# Tests constrained by this property are simply skipped outside Vivado.
+# Tests constrained by this property are simply skipped when executed outside 
+# Vivado.
+testConstraint vivado 0
 if {[catch {
-    set vivadoPackageVersion [package require Vivado 1.2016.3]
-} errorResult] == 1} {
-    testConstraint vivado 0
-} else {
+    package require Vivado 1.2016.3
+} errorResult] != 1} {
+    # Vivado package available. Script is being executed by the Vivado Tcl
+    # interpreter.
     testConstraint vivado 1
 }
 
-test "test1" "" \
+# Define test constraint based on whether a Digilent Nexys 4 board is listed as 
+# the first device connected to the machine on which the test is being executed. 
+# This constrains implies the previously defined vivado constraint.
+testConstraint nexys4 0
+if {[testConstraint vivado] == 1} {
+    # Vivado specific section. Get properties for UID and TID for the first
+    # connected hw_target.
+    if {[catch {
+        open_hw
+        current_hw_server [connect_hw_server]
+        current_hw_target [lindex [get_hw_targets] 0]
+        set tid [get_property TID [current_hw_target]]
+        set uid [get_property UID [current_hw_target]]
+        disconnect_hw_server
+        close_hw
+    }] != 1} {
+        # No error in the section above. Now set the nexys4 constraint based on
+        # the presence of "Digilent" in UID and "Nexys4" in TID.
+        if {[string first Digilent $uid] >= 0 \
+                && [string first Nexys4 $tid] >= 0} {
+            testConstraint nexys4 1
+        }
+    }
+} 
+
+test "testVivado" "" \
         -constraints { vivado } \
         -body {
             puts "Vivado test was run"
         }
 
-test "test2" "" \
+test "testNexys4" "" \
+        -constraints { nexys4 } \
+        -body {
+            puts "Nexys4 test was run"
+        }
+
+test "testNormal" "" \
         -body {
             puts "Normal test was run"
         }
