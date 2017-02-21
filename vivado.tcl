@@ -14,6 +14,7 @@
 # limitations under the License.
 
 package require Tcl 8.5
+package require Vivado 1.2016.3
 
 package provide fpgaedu::vivado 1.0
 
