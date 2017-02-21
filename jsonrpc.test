@@ -16,7 +16,7 @@
 lappend auto_path .
 
 package require Tcl 8.5
-package require tcltest 2.3.8
+package require tcltest 2.3.5
 package require fpgaedu::jsonrpc 1.0
 package require fpgaedu::assert 1.0
 package require fpgaedu::assert::json 1.0

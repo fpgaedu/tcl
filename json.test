@@ -35,7 +35,7 @@
 #    POSSIBILITY OF SUCH DAMAGE.
 
 package require Tcl 8.5
-package require tcltest 2.3.8
+package require tcltest 2.3.5
 
 namespace import ::tcltest::*
 
