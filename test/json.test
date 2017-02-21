@@ -34,8 +34,11 @@
 #    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #    POSSIBILITY OF SUCH DAMAGE.
 
+lappend auto_path ..
+
 package require Tcl 8.5
 package require tcltest 2.3.5
+package require fpgaedu::json
 
 namespace import ::tcltest::*
 
@@ -60,9 +63,6 @@ proc assert-equal args {
     }
 }
 
-# Create a new test $name with code $code.
-
-source json.tcl
 
 set d [dict create {*}{
 array {0 Tokyo 1 Seoul 2 Shanghai}
