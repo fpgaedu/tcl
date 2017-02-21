@@ -85,7 +85,7 @@ proc ::fpgaedu::vivado::Program {bitstreamPath {target {}} {device {}}} {
     open_hw_target
 
     if {$device == {}} {
-        current_hw_device [lindex [get_hw_devices]]
+        current_hw_device [lindex [get_hw_devices] 0]
     }
 
     set_property PROGRAM.FILE $bitstreamPath [current_hw_device]
