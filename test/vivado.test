@@ -98,27 +98,42 @@ test "testNexys4Programming" \
             close_hw_target
             disconnect_hw_server
             close_hw            
+            # Point to Nexys 4 user demo bitstream file
+            set bitstreamPath [file join resources nexys4.bit]
         } \
         -body {
-            set bitstreamPath [file join resources nexys4.bit]
-            
+            # Should program first listed device when no target and device
+            # are specified.
+            ::fpgaedu::vivado::vivado program $bitstreamPath
+            # Should program specific target and device.
             ::fpgaedu::vivado::vivado program \
                     $bitstreamPath \
                     $targetIdentifier \
                     $deviceIdentifier
-
+            # Should throw error on illegal bitstream path
+            assertThrows {
+                ::fpgaedu::vivado::vivado program illegalPath
+            }
+            # Should throw error on illegal device identifier
             assertThrows {
                 ::fpgaedu::vivado::vivado program \
                         $bitstreamPath \
                         $targetIdentifier \
                         someRandomString
             }
-
+            # Should throw error on illegal target identifier
             assertThrows {
                 ::fpgaedu::vivado::vivado program \
                         $bitstreamPath \
                         someRandomString \
                         $deviceIdentifier
+            }
+            # Should throw error on illegal identifiers
+            assertThrows {
+                ::fpgaedu::vivado::vivado program \
+                        $bitstreamPath \
+                        someRandomString \
+                        someOtherRandomString
             }
         } \
         -cleanup {
