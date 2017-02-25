@@ -17,133 +17,201 @@ lappend auto_path ..
 
 package require Tcl 8.5
 package require tcltest 2.3.5
+package require fpgaedu::json 2.0
 package require fpgaedu::jsonrpc 1.0
 package require fpgaedu::assert 1.0
-package require fpgaedu::assert::json 1.0
 
 namespace import ::tcltest::*
 namespace import ::fpgaedu::assert::*
-namespace import ::fpgaedu::assert::json::*
+namespace import ::fpgaedu::json::json
+namespace import ::fpgaedu::jsonrpc::jsonrpc
 
-test "findHandlerTest1" "" \
+test "testFindHandler1" "" \
         -body {
-            set mapping [list test someHandlerMethod]
-            set handler [::fpgaedu::jsonrpc::findHandler $mapping test] 
+            set rpcConfig {mapping {test someHandlerMethod}}
+            set handler [::fpgaedu::jsonrpc::FindHandler $rpcConfig test] 
             assertEquals $handler someHandlerMethod
+        } \
+        -cleanup {
+            unset rpcConfig
+            unset handler
         }
 
-test "findHandlerTest2" "" \
+test "testFindHandler2" "" \
         -body {
             assertThrows {
-                ::fpgaedu::jsonrpc::findHandler {} test
+                ::fpgaedu::jsonrpc::FindHandler {} test
             } errorResult
-
             assertDictContains $errorResult code -32601
-        } 
+        } \
+        -cleanup {
+            unset errorResult
+        }
 
-test "throwTest1" "" \
+test "testMap1" "" \
+        -setup {
+            jsonrpc map rpcConfig test1 testProcedure1
+            jsonrpc map rpcConfig test2 testProcedure2
+        } \
+        -body {
+            assertDictContains $rpcConfig mapping test1 testProcedure1
+            assertDictContains $rpcConfig mapping test2 testProcedure2
+        } \
+        -cleanup {
+            unset rpcConfig
+        }
+
+test "testThrow1" "" \
         -body {
             assertThrows {
-                ::fpgaedu::jsonrpc::throw 12345 "some error message"
+                jsonrpc throw -code parseError -message "Parse error."
             } errorResult
-
-            assertDictContains $errorResult code 12345
-            assertDictContains $errorResult message "some error message"
-        } 
-
-test "throwParseErrorTest1" "" \
-        -body {
-            assertThrows {
-                ::fpgaedu::jsonrpc::throwParseError "Parse error."
-            } errorResult
-
             assertDictContains $errorResult code -32700
             assertDictContains $errorResult message "Parse error."
-        } 
+            assertThrows {
+                assertDictContainsKey $errorResult dataJson 
+            }
+        } \
+        -cleanup {
+            unset errorResult
+        }
 
-test "throwInvalidRequestTest1" "" \
+test "testThrow2" "" \
+        -setup {
+            set errorDataJson [json create object]
+            json set errorDataJson details string "error details"
+        } \
         -body {
             assertThrows {
-                ::fpgaedu::jsonrpc::throwInvalidRequest "Invalid request."
+                jsonrpc throw \
+                        -code parseError \
+                        -message "Parse error." \
+                        -dataJson $errorDataJson
             } errorResult
+            assertDictContains $errorResult code -32700
+            assertDictContains $errorResult message "Parse error."
+            assertTrue [json contains [dict get $errorResult dataJson] \
+                    -key details \
+                    -type string \
+                    -value "error details"]
+        } \
+        -cleanup {
+            unset errorResult
+        }
 
+test "testThrow3" "" \
+        -body {
+            assertThrows {
+                jsonrpc throw \
+                        -code invalidRequest \
+                        -message "Invalid request."
+            } errorResult
             assertDictContains $errorResult code -32600
             assertDictContains $errorResult message "Invalid request."
+        } -cleanup {
+            unset errorResult
         }
 
-test "throwUnknownMethodTest1" "" \
+test "testThrow4" "" \
         -body {
             assertThrows {
-                ::fpgaedu::jsonrpc::throwUnknownMethod "Unknown method."
+                jsonrpc throw \
+                        -code unknownMethod \
+                        -message "Unknown method."
             } errorResult
-
             assertDictContains $errorResult code -32601
             assertDictContains $errorResult message "Unknown method."
+        } -cleanup {
+            unset errorResult
         }
 
-test "throwInvalidParamsTest1" "" \
+test "testThrow5" "" \
         -body {
             assertThrows {
-                ::fpgaedu::jsonrpc::throwInvalidParams "Invalid params."
+                jsonrpc throw \
+                        -code invalidParams \
+                        -message "Invalid params."
             } errorResult
-
             assertDictContains $errorResult code -32602
             assertDictContains $errorResult message "Invalid params."
+        } -cleanup {
+            unset errorResult
         }
 
-test "throwInternalErrorTest1" "" \
+test "testThrow6" "" \
         -body {
             assertThrows {
-                ::fpgaedu::jsonrpc::throwInternalError "Internal error."
+                jsonrpc throw \
+                        -code internalError \
+                        -message "Internal error."
             } errorResult
-
             assertDictContains $errorResult code -32603
             assertDictContains $errorResult message "Internal error."
+        } -cleanup {
+            unset errorResult
+        }        
+
+test "testThrow7" "" \
+        -body {
+            assertThrows {
+                jsonrpc throw \
+                        -code 1234 \
+                        -message "Some message."
+            } errorResult
+            assertDictContains $errorResult code 1234
+            assertDictContains $errorResult message "Some message."
         }
 
 test "validateRequestTest1" "" \
+        -setup {
+            set testJson [json create object]
+            json set testJson jsonrpc string 2.0
+            json set testJson method string test 
+        } \
         -body {
-            set requestData {jsonrpc 2.0 method test}
-            set requestSchema {jsonrpc string method string}
-            assertTrue [::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema]
-             
+            assertTrue [::fpgaedu::jsonrpc::ValidateRequest $testJson]
         }
 
 test "validateRequestTest2" "" \
+        -setup {
+            set testJson [json create object]
+            json set testJson jsonrpc number 2.0
+            json set testJson method string test
+        } \
         -body {
-            set requestData { jsonrpc 2.0 method test }
-            set requestSchema { jsonrpc number method string }
             assertThrows {
-                ::fpgaedu::jsonrpc::validateRequest $requestData $requestSchema
+                ::fpgaedu::jsonrpc::ValidateRequest $testJson
             } errorResult
 
             assertDictContains $errorResult code -32600
-        } 
-
-test "handleTest1" "" \
-        -body {
-            proc testHandler {params} {
-                return "hello"
-            }
-            set request {{"jsonrpc": "2.0", 
-                          "method": "test",
-                          "params": [42, 23], 
-                          "id": 1}}
-            set mapping {test testHandler}
-            set response [::fpgaedu::jsonrpc::handle $mapping $request]
-
-            assertObjectContainsString $response jsonrpc 2.0
+        } \
+        -cleanup {
+            unset testJson
+            unset errorResult
         }
 
-test "handleTest2" "" \
-        -body {
-            proc testHandler {params} {
-                return {
-                    {hello world this is a string array}
-                    
-                }
-
+test "handleTest1" "" \
+        -setup {
+            proc ::testHandler {params} {
+                return [json create string "hello world"]
             }
+            set requestData {{"jsonrpc": "2.0", "method": "test"}}
+            dict set rpcConfig mapping test ::testHandler
+        } \
+        -body {
+            set responseData [::fpgaedu::jsonrpc::Handle $rpcConfig $requestData]
+            set responseJson [json parse $responseData]
+            assertTrue [json contains $responseJson \
+                    -key result \
+                    -type string \
+                    -value "hello world"]
+        } \
+        -cleanup {
+            rename testHandler ""
+            unset requestData
+            unset responseData
+            unset responseJson
+            unset rpcConfig
         }
 
 cleanupTests    

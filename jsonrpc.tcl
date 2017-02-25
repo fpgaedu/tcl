@@ -14,209 +14,250 @@
 # limitations under the License.
 
 package require Tcl 8.5
-package require fpgaedu::json 1.0
+package require fpgaedu::json 2.0
 
 package provide fpgaedu::jsonrpc 1.0
 
+namespace import ::fpgaedu::json::json
+
 namespace eval ::fpgaedu::jsonrpc {
+
+    namespace export jsonrpc
+    
     variable parseErrorCode -32700
     variable invalidRequestErrorCode -32600
     variable unknownMethodErrorCode -32601
     variable invalidParamsErrorCode -32602
     variable internalErrorCode -32603
+
+    namespace ensemble create \
+            -command jsonrpc \
+            -map {
+                map     ::fpgaedu::jsonrpc::Map
+                handle  ::fpgaedu::jsonrpc::Handle
+                throw   ::fpgaedu::jsonrpc::Throw
+            }
 }
 
-proc ::fpgaedu::jsonrpc::handle {mapping request} {
+proc ::fpgaedu::jsonrpc::Map {rpcConfigName rpcMethod handler} {
+    upvar $rpcConfigName rpcConfig
 
-    variable ::fpgaedu::jsonrpc::internalErrorCode
+    dict set rpcConfig mapping $rpcMethod $handler
 
-    set id null
-    set idSchema null
+    return $rpcConfig
+}
+
+proc ::fpgaedu::jsonrpc::Handle {rpcConfig requestData} {
+
+    variable internalErrorCode
+
+    set idJson [json create null]
 
     if {[catch {
         # parse request data
-        lassign [::fpgaedu::jsonrpc::parseRequest $request] data schema
+        set requestJson [ParseRequest $requestData]
 
         # validate request
-        ::fpgaedu::jsonrpc::validateRequest $data $schema
+        ValidateRequest $requestJson
 
         # extract relevant request members
-        set method [dict get $data method]
-        set id [dict get $data id]
-        set idSchema [dict get $schema id]
-        set params {}
-        if {[dict exists $data params]} {
-            set params [dict get $data params]
+        set method [json get $requestJson method]
+
+        if {[json contains $requestJson -key id]} {
+            set idJson [json get $requestJson id -json]
+        }
+
+        if {[json contains $requestJson -key params]} {
+            set paramsJson [json get $requestJson params -json]
+        } else {
+            set paramsJson [json create null]
         }
 
         # find proper handler
-        set handler [::fpgaedu::jsonrpc::findHandler $mapping $method]
+        set handler [FindHandler $rpcConfig $method]
 
         # execute handler
-            set result [eval [list $handler $params]]
-        set resultSchema {}
+        set resultJson [$handler $paramsJson]
 
-        set response [::fpgaedu::jsonrpc::stringifyResult $result $resultSchema \
-                $id $idSchema] 
-       
-        
+        set response [StringifyResult $resultJson $idJson] 
+
+
     } errorResult]} {
+        puts $errorResult
         # catch error throws in section above
-        dict set error code $internalErrorCode
-        dict set error message "Internal error"
-        dict set error data {}
-        set errorDataSchema {}
+        set errorCode $internalErrorCode 
+        set errorMessage "Internal error"
+        set errorDataJson {}
 
         if {[dict exists $errorResult code] 
                 && [dict exists $errorResult message]} {
             # $errorResult is probably the result of a call to the 
-            # ::fpgaedu::jsonrpc::throw proc
-            dict set error code [dict get $errorResult code]
-            dict set error message [dict get $errorResult message]
-
-            if {[dict exists $errorResult data]} {
-                dict set error data [dict get $errorResult data]
+            # ::fpgaedu::jsonrpc::Throw proc
+            set errorCode [dict get $errorResult code]
+            set errorMessage [dict get $errorResult message]
+            if {[dict exists $errorResult dataJson]} {
+                set errorDataJson [dict get $errorResult dataJson]
             }
         } else {
-            dict set error data errorResult
-            dict set errorDataSchema string
+            set errorDataJson [json create string $errorResult]
         }
 
-        set response [::fpgaedu::jsonrpc::stringifyError $error $errorDataSchema $id $idSchema]
+        set response [StringifyError $errorCode $errorMessage $errorDataJson $idJson]
     }
 
     return $response
 }
 
-proc ::fpgaedu::jsonrpc::parseRequest {request} {
+# ::fpgaedu::jsonrpc::Throw 
+#
+#       Returns an error in a specific format. Use of this procedure inside a 
+#       handler procedure results in the call being translated into the 
+#       proper JSON-RPC response.
+#
+# Synopsis:
+#       ::fpgaedu::jsonrpc::throw TYPE ?-message MSG? ?-dataJson JSON?
+#
+# Arguments:
+#       type    The error type identifier. Must be one of "parseError", 
+#               "invalidRequest", "unknownMethod", "invalidParams" or 
+#               "internalError"
+#
+# Options:
+#       -errorMessage MSG   The message to return in the JSON-RPC response error 
+#                           object's message field. If not provided, a standard
+#                           message is set.
+#       -errorDataJson JSON The json content to be returned in the JSON-RPC 
+#                           response error object's data field. If not provided, 
+#                           the error object's data field is omitted. The value 
+#                           provided for JSON should provided by the 
+#                           fpgaedu::json package.
+#
+# Results:
+#       Causes an error to be retuned. The returned value is a dictionary 
+#       containing entries for the keys code, message and optionally data. The 
+#       dictionary's entry for "code" contains an integer value that represents
+#       the error code as defined in the JSON-RPC spec that corresponts to the 
+#       value provided in the type argument.
+#
+proc ::fpgaedu::jsonrpc::Throw {args} {
+    
+    set errorResult {}
 
-    if {[catch {
-        set json [::fpgaedu::json::parse $request 0]
-        set schema [::fpgaedu::json::parseSchema $request 0]
-    } err ]} {
-        ::fpgaedu::jsonrpc::throwParseError $err
+    switch [dict get $args -code] {
+        parseError {
+            dict set errorResult code -32700
+        }
+        invalidRequest {
+            dict set errorResult code -32600
+        }
+        unknownMethod {
+            dict set errorResult code -32601
+        }
+        invalidParams {
+            dict set errorResult code -32602
+        }
+        internalError {
+            dict set errorResult code -32603
+        }
+        default {
+            dict set errorResult code [dict get $args -code]
+        }
     }
 
-    return [list $json $schema]
+    dict set errorResult message [dict get $args -message]
+
+    if {[dict exists $args -dataJson]} {
+        dict set errorResult dataJson [dict get $args -dataJson]
+    }
+    
+    error $errorResult
 }
 
-proc ::fpgaedu::jsonrpc::validateRequest {data schema} {
+
+
+# Private procedures
+
+proc ::fpgaedu::jsonrpc::ParseRequest {requestData} {
+
+    if {[catch {
+        set requestJson [json parse $requestData]
+    } err ]} {
+        Throw -code parseError -message $err
+    }
+
+    return $requestJson
+}
+
+proc ::fpgaedu::jsonrpc::ValidateRequest {requestJson} {
     # check jsonrpc member
-    if {![dict exists $data jsonrpc]} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Missing member jsonrpc"
+    if {![json contains $requestJson -key jsonrpc]} {
+        Throw -code invalidRequest -message "Missing member jsonrpc"
     }
-    if {[dict get $schema jsonrpc] != "string"} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for member jsonrpc"
+    if {![json contains $requestJson -key jsonrpc -type string]} {
+        Throw -code invalidRequest -message "Illegal type for member jsonrpc"
     }
-    if {[dict get $data jsonrpc] != "2.0"} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal value for member jsonrpc"
+    if {![json contains $requestJson -key jsonrpc -value 2.0]} {
+        Throw -code invalidRequest -message "Illegal value for member jsonrpc"
     }
  
     #check method member
-    if {![dict exists $data method]} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Missing member method"
+    if {![json contains $requestJson -key method]} {
+        Throw -code invalidRequest -message "Missing member method"
     }
-    if {[dict get $schema method] != "string"} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for member method"
+    if {![json contains $requestJson -key method -type "string"]} {
+        Throw -code invalidRequest -message "Illegal type for member method"
     }
-    if {[dict get $data method] == ""} {
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal value for member method"
+    if {[json contains $requestJson -key method -value ""]} {
+        Throw -code invalidRequest -message "Illegal value for member method"
     }
 
+    #check params member type, if provided
+    set validParamsTypes {object array}
+    if {[json contains $requestJson -key params] 
+            && [json get $requestJson params -type] ni $validParamsTypes} {
+        Throw -code invalidRequest -message "Illegal type for member params."
+    }
+
+    #check id member type, if provided
     set validIdTypes {string number null}
-
-    #check id member 
-    if {[dict exists $data id] && [dict get $schema id] ni $validIdTypes} {
-
-        ::fpgaedu::jsonrpc::throwInvalidRequest "Illegal type for id"
+    if {[json contains $requestJson -key id] 
+            && [json get $requestJson id -type] ni $validIdTypes} {
+        Throw -code invalidRequest -message "Illegal type for id"
     }
 
     return 1
 }
 
-proc ::fpgaedu::jsonrpc::stringifyResult {data dataSchema id idSchema} {
+proc ::fpgaedu::jsonrpc::StringifyResult {resultJson idJson} {
 
-   dict set response jsonrpc 2.0
-   dict set response id $id
-   dict set response result $data
+    set responseJson [json create object]
+    json set responseJson jsonrpc string 2.0
+    json set responseJson id json $idJson
+    json set responseJson result json $resultJson
 
-   dict set schema jsonrpc string
-   dict set schema id $idSchema
-   dict set schema result $dataSchema
-
-   if {[dict get $response result] == {}} {
-       dict set response result null
-       dict set schema result null
-   }
-
-   return [::fpgaedu::json::stringify $response 0 $schema]
+   return [json stringify $responseJson]
 }
 
-proc ::fpgaedu::jsonrpc::stringifyError {error errorDataSchema id idSchema} {
-
-   dict set response jsonrpc 2.0
-   dict set response id $id
-   dict set response error $error 
-
-   dict set schema jsonrpc string
-   dict set schema id $idSchema
-   dict set schema error code number
-   dict set schema error message string
-   if {[dict exists $error data]} {
-       dict set schema error data $errorDataSchema
+proc ::fpgaedu::jsonrpc::StringifyError {errorCode errorMessage errorDataJson \
+        idJson} {
+    set responseJson [json create object]
+    json set responseJson jsonrpc string 2.0
+    json set responseJson id json $idJson
+    json set responseJson error object
+    json set responseJson error.code number $errorCode
+    json set responseJson error.message string $errorMessage
+   if {$errorDataJson ne {}} {
+       json set responseJson error.data json $errorDataJson
    }
-
-   return [::fpgaedu::json::stringify $response 0 $schema]
-
+   return [json stringify $responseJson]
 }
 
-proc ::fpgaedu::jsonrpc::findHandler {mapping method} {
-    
+proc ::fpgaedu::jsonrpc::FindHandler {rpcConfig method} {
     if {[catch {
-        set handler [dict get $mapping $method]
-    } errorResult]} {
-        ::fpgaedu::jsonrpc::throwUnknownMethod "Unknown method $method"
+        set handler [dict get $rpcConfig mapping $method]
+    } errorResult] == 1} {
+        Throw -code unknownMethod -message "No handler set for method $method"
+    } else {
+        return $handler
     }
-
-    return $handler
-}
-
-proc ::fpgaedu::jsonrpc::throw {code message {data {}} {dataSchema {}}} {
-
-    dict set result code $code
-    dict set result message $message
-
-    if {$data ne {}} {
-        dict set result data $data 
-        if {$data schema ne ""} {
-            dict set result dataSchema $dataSchema
-        }
-    }
-
-    error $result
-}
-
-proc ::fpgaedu::jsonrpc::throwParseError {message {data ""} {dataSchema ""}} {
-    variable ::fpgaedu::jsonrpc::parseErrorCode
-    ::fpgaedu::jsonrpc::throw $parseErrorCode $message $data $dataSchema
-}
-
-proc ::fpgaedu::jsonrpc::throwInvalidRequest {message {data ""} {dataSchema ""}} {
-    variable ::fpgaedu::jsonrpc::invalidRequestErrorCode
-    ::fpgaedu::jsonrpc::throw $invalidRequestErrorCode $message $data $dataSchema
-}
-
-proc ::fpgaedu::jsonrpc::throwUnknownMethod {message {data ""} {dataSchema ""}} {
-    variable ::fpgaedu::jsonrpc::unknownMethodErrorCode
-    ::fpgaedu::jsonrpc::throw $unknownMethodErrorCode $message $data $dataSchema
-}
-
-proc ::fpgaedu::jsonrpc::throwInvalidParams {message {data ""} {dataSchema ""}} {
-    variable ::fpgaedu::jsonrpc::invalidParamsErrorCode
-    ::fpgaedu::jsonrpc::throw $invalidParamsErrorCode $message $data $dataSchema
-}
-
-proc ::fpgaedu::jsonrpc::throwInternalError {message {data ""} {dataSchema ""}} {
-    variable ::fpgaedu::jsonrpc::internalErrorCode
-    ::fpgaedu::jsonrpc::throw $internalErrorCode $message $data $dataSchema
 }
