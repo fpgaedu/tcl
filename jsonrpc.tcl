@@ -18,25 +18,29 @@ package require fpgaedu::json 2.0
 
 package provide fpgaedu::jsonrpc 1.0
 
-namespace import ::fpgaedu::json::json
-
 namespace eval ::fpgaedu::jsonrpc {
 
     namespace export jsonrpc
-    
+    namespace import ::fpgaedu::json::json
+
     variable parseErrorCode -32700
     variable invalidRequestErrorCode -32600
     variable unknownMethodErrorCode -32601
     variable invalidParamsErrorCode -32602
     variable internalErrorCode -32603
 
+    set commandMap {
+            map     ::fpgaedu::jsonrpc::Map
+            handle  ::fpgaedu::jsonrpc::Handle
+            throw   ::fpgaedu::jsonrpc::Throw
+    }
+
+    namespace ensemble create \
+            -map $commandMap
+
     namespace ensemble create \
             -command jsonrpc \
-            -map {
-                map     ::fpgaedu::jsonrpc::Map
-                handle  ::fpgaedu::jsonrpc::Handle
-                throw   ::fpgaedu::jsonrpc::Throw
-            }
+            -map $commandMap
 }
 
 proc ::fpgaedu::jsonrpc::Map {rpcConfigName rpcMethod handler} {
