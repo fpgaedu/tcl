@@ -23,6 +23,10 @@ package require fpgaedu::test::constraint 1.0
 namespace import ::tcltest::*
 namespace import ::fpgaedu::assert::*
 
+# Load fpgaedu::vivado package. This package is loaded conditionally, in order 
+# to prevent this test script from crashing when executed outside the Vivado
+# Tcl interpreter, since the fpgaedu::vivado package is dependent on the
+# Vivado package.
 if {[testConstraint vivado] == 1} {
     package require fpgaedu::vivado 1.0
 }
