@@ -1,0 +1,73 @@
+#
+# Copyright 2017 Matthijs Bos <matthijs_vlaarbos@hotmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+lappend auto_path ..
+
+package require Tcl 8.5
+package require tcltest 2.3.5
+package require base64 2.4
+
+package require fpgaedu::assert 1.0
+package require fpgaedu::json 2.0
+package require fpgaedu::test::constraint 1.0
+
+namespace import ::tcltest::*
+namespace import ::fpgaedu::assert::*    
+namespace import ::fpgaedu::json::json
+
+if {[testConstraint vivado] == 1} {
+    package require fpgaedu::vivadoserver 1.0
+}
+
+test "testRpcProgramHandler" "" \
+        -constraints { nexys4 } \
+        -setup {
+            # Get target and device names
+            open_hw
+            current_hw_server [connect_hw_server]
+            current_hw_target [lindex [get_hw_targets] 0]
+            open_hw_target
+            current_hw_device [lindex [get_hw_devices] 0]
+            set targetIdentifier [get_property NAME [current_hw_target]]
+            set deviceIdentifier [get_property NAME [current_hw_device]]
+            close_hw_target
+            disconnect_hw_server
+            close_hw            
+            # Point to Nexys 4 user demo bitstream file
+            set bitstreamPath [file join resources nexys4.bit]
+            set bitstreamChan [open $bitstreamPath r]
+            chan configure $bitstreamChan \
+                    -encoding binary \
+                    -translation binary
+            set bitstreamData [chan read $bitstreamChan]
+            chan close $bitstreamChan
+            set bitstreamBase64 [base64::encode $bitstreamData]
+
+            set paramsJson [json create object]
+            json set paramsJson device string $deviceIdentifier
+            json set paramsJson target string $targetIdentifier
+            json set paramsJson bitstream string $bitstreamBase64
+
+        } \
+        -body {
+            set resultJson [::fpgaedu::vivadoserver::rpcProgramHandler $paramsJson]
+            assertTrue [json contains -type null]
+        } \
+        -cleanup {
+
+        }
+
+cleanupTests
