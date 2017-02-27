@@ -15,9 +15,9 @@
 
 package require Tcl 8.5
 
-package provide fpgaedu::assert 1.0
+package provide fpgaedu::test::assert 1.0
 
-namespace eval ::fpgaedu::assert {
+namespace eval ::fpgaedu::test::assert {
     namespace export assertEquals \
             assertThrows \
             assertTrue \
@@ -28,7 +28,7 @@ namespace eval ::fpgaedu::assert {
             assertDictContainsKey
 }
 
-proc ::fpgaedu::assert::assertThrows {body {errorResultName {}}} {
+proc ::fpgaedu::test::assert::assertThrows {body {errorResultName {}}} {
     
     if {[catch {
         # evaluate script body in the caller's context in order to allow for
@@ -42,63 +42,63 @@ proc ::fpgaedu::assert::assertThrows {body {errorResultName {}}} {
         return
     } else {
         # no error returned
-        ::fpgaedu::assert::assertionError "No error returned, instead returned \"$result\"." 1
+        ::fpgaedu::test::assert::assertionError "No error returned, instead returned \"$result\"." 1
     }
 }
 
-proc ::fpgaedu::assert::assertEquals {actual expected} {
+proc ::fpgaedu::test::assert::assertEquals {actual expected} {
     if {$actual ne $expected} {
-        ::fpgaedu::assert::assertionError "expected \"$expected\" but got \"$actual\"" 1
+        assertionError "expected \"$expected\" but got \"$actual\"" 1
     }
 }
 
-proc ::fpgaedu::assert::assertTrue {expr} {
+proc ::fpgaedu::test::assert::assertTrue {expr} {
     if {![expr $expr]} {
-        ::fpgaedu::assert::assertionError "$expr does not evaluate to a nonzero integer" 1
+        assertionError "$expr does not evaluate to a nonzero integer" 1
     }
 }
 
-proc ::fpgaedu::assert::assertFalse {expr} {
+proc ::fpgaedu::test::assert::assertFalse {expr} {
     if {[expr $expr]} {
-        ::fpgaedu::assert::assertionError "$expr does not evaluate to 0" 1
+        assertionError "$expr does not evaluate to 0" 1
     }
 }
 
-proc ::fpgaedu::assert::assertStringContains {string value} {
+proc ::fpgaedu::test::assert::assertStringContains {string value} {
     
     if {[string first [join $value] [join $string]] == -1} {
-        ::fpgaedu::assert::assertionError "String \"$string\" does not contain \
+        ::fpgaedu::test::assert::assertionError "String \"$string\" does not contain \
                 \"$value\"" 1
     }
 }
 
-proc ::fpgaedu::assert::assertListContains {list value} {
+proc ::fpgaedu::test::assert::assertListContains {list value} {
     if {$value ni $list} {
-        ::fpgaedu::assert::assertionError "List $list does not contain $value" 1
+        assertionError "List $list does not contain $value" 1
     }
 }
 
-proc ::fpgaedu::assert::assertDictContainsKey {dictionary args} {
+proc ::fpgaedu::test::assert::assertDictContainsKey {dictionary args} {
     set key [lrange $args 0 [expr [llength $args] - 1]]
 
     if {![dict exists $dictionary {*}$key]} {
-        ::fpgaedu::assert::assertionError "dictionary does not contain key \
+        assertionError "dictionary does not contain key \
                 \"$key\"" 1
     }
 }
 
-proc ::fpgaedu::assert::assertDictContains {dictionary args} {
+proc ::fpgaedu::test::assert::assertDictContains {dictionary args} {
     set key [lrange $args 0 [expr [llength $args] - 2]]
     set value [lindex $args [expr [llength $args] - 1]]
 
     set dictValue [dict get $dictionary {*}$key]
 
     if {$dictValue != $value} {
-        ::fpgaedu::assert::assertionError "dictionary does not contain value \
+        assertionError "dictionary does not contain value \
                 \"$value\" for key \"$key\", instead contains \"$dictValue\"" 1
     }
 }
 
-proc ::fpgaedu::assert::assertionError {message {level 0}} {
+proc ::fpgaedu::test::assert::assertionError {message {level 0}} {
     return -code error -level [expr $level+1] "Assertion error: $message"
 }

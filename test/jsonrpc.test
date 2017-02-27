@@ -19,12 +19,12 @@ package require Tcl 8.5
 package require tcltest 2.3.5
 package require fpgaedu::json 2.0
 package require fpgaedu::jsonrpc 1.0
-package require fpgaedu::assert 1.0
+package require fpgaedu::test::assert 1.0
 
 namespace import ::tcltest::*
-namespace import ::fpgaedu::assert::*
 namespace import ::fpgaedu::json::json
 namespace import ::fpgaedu::jsonrpc::jsonrpc
+namespace import ::fpgaedu::test::assert::*
 
 test "testFindHandler1" "" \
         -body {

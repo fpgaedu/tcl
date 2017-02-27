@@ -20,13 +20,13 @@ package require Tcl 8.5
 package require tcltest 2.3.5
 package require base64 2.4
 
-package require fpgaedu::assert 1.0
 package require fpgaedu::json 2.0
+package require fpgaedu::test::assert 1.0
 package require fpgaedu::test::constraint 1.0
 
 namespace import ::tcltest::*
-namespace import ::fpgaedu::assert::*    
 namespace import ::fpgaedu::json::json
+namespace import ::fpgaedu::test::assert::*
 
 if {[testConstraint vivado] == 1} {
     package require fpgaedu::vivadoserver 1.0
