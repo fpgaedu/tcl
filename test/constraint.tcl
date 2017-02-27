@@ -46,19 +46,25 @@ if {[catch {
 # the only device connected to the machine on which the test is being executed. 
 # This constrains implies the previously defined vivado constraint.
 ::tcltest::testConstraint nexys4 0
+::tcltest::testConstraint vivadoNoHw 0
 if {[::tcltest::testConstraint vivado] == 1} {
     if {[catch {
         # Vivado specific section. Get properties for UID and TID for the first
         # connected hw_target.
         open_hw
         current_hw_server [connect_hw_server]
-        current_hw_target [lindex [get_hw_targets] 0]
-        set tid [get_property TID [current_hw_target]]
-        set uid [get_property UID [current_hw_target]]
-        # Execute open_hw_target command in order to check that the nexys4 
-        # board is actually powered on. This command will return an error 
-        # if this is not the case.
-        open_hw_target
+
+        if {[llength [get_hw_targets]] == 0} {
+            ::tcltest::testConstraint vivadoNoHw 1
+        } else {
+            current_hw_target [lindex [get_hw_targets] 0]
+            set tid [get_property TID [current_hw_target]]
+            set uid [get_property UID [current_hw_target]]
+            # Execute open_hw_target command in order to check that the nexys4 
+            # board is actually powered on. This command will return an error 
+            # if this is not the case.
+            open_hw_target
+        }
     }] != 1} {
         # No error in the section above. Now set the nexys4 constraint based on
         # the presence of "Digilent" in UID and "Nexys4" in TID and the 
@@ -71,9 +77,12 @@ if {[::tcltest::testConstraint vivado] == 1} {
                 && [string first Nexys4 $tid] >= 0} {
             ::tcltest::testConstraint nexys4 1
         }
+        # Clean up 
+        unset tid
+        unset uid
+        close_hw_target
     }
     # Clean up 
-    close_hw_target
     disconnect_hw_server
     close_hw
 } 

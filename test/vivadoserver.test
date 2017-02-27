@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+lappend auto_path .
 lappend auto_path ..
 
 package require Tcl 8.5
@@ -23,16 +24,18 @@ package require base64 2.4
 package require fpgaedu::json 2.0
 package require fpgaedu::test::assert 1.0
 package require fpgaedu::test::constraint 1.0
+# Load the fpgaedu::vivadoserver package conditionally, in order to prevent 
+# crash in the case of this test script being executed outside the Vivado Tcl
+# interpreter, such as tclsh.
+if {[::tcltest::testConstraint vivado] == 1} {
+    package require fpgaedu::vivadoserver 1.0
+}
 
 namespace import ::tcltest::*
 namespace import ::fpgaedu::json::json
 namespace import ::fpgaedu::test::assert::*
 
-if {[testConstraint vivado] == 1} {
-    package require fpgaedu::vivadoserver 1.0
-}
-
-test "testRpcProgramHandler" "" \
+test "testRpcProgramHandler1" "" \
         -constraints { nexys4 } \
         -setup {
             # Get target and device names
@@ -67,6 +70,18 @@ test "testRpcProgramHandler" "" \
             assertTrue [json contains -type null]
         } \
         -cleanup {
+            unset targetIdentifier
+            unset deviceIdentifier
+            unset bitstreamPath
+            unset bitstreamChan
+            unset bitstreamData
+            unset bitstreamBase64
+            unset paramsJson
+            unset resultJson
+        }
+
+test "testRpcProgramHandler2" "" \
+        -body {
 
         }
 

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-lappend auto_path ..
+lappend auto_path .
 
 package require Tcl 8.5
 package require tcltest 2.3.5
