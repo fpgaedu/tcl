@@ -1,5 +1,7 @@
 # FPGAedu Tcl Library
 
+> This project is work in progress...
+
 This library contains a number of packages that collectively contribute to the 
 development of a server application that is to be run inside a Vivado instance, 
 allowing for interprocess communication between a client and Vivado features.
