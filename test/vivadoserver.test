@@ -27,7 +27,7 @@ package require fpgaedu::test::constraint 1.0
 # Load the fpgaedu::vivadoserver package conditionally, in order to prevent 
 # crash in the case of this test script being executed outside the Vivado Tcl
 # interpreter, such as tclsh.
-if {[::tcltest::testConstraint vivado] == 1} {
+if {[::tcltest::testConstraint vivado]} {
     package require fpgaedu::vivadoserver 1.0
 }
 
@@ -35,54 +35,48 @@ namespace import ::tcltest::*
 namespace import ::fpgaedu::json::json
 namespace import ::fpgaedu::test::assert::*
 
+# Setup some nexys4-specific test variables. Since the acquisition of this 
+# information takes relatively long, these steps are not repeated in every
+# test setup.
+if {[::tcltest::testConstraint nexys4]} {
+    # Get nexys4 target and device identifiers
+    open_hw
+    current_hw_server [connect_hw_server]
+    current_hw_target [lindex [get_hw_targets] 0]
+    open_hw_target
+    current_hw_device [lindex [get_hw_devices] 0]
+    set nexys4TargetIdentifier [get_property NAME [current_hw_target]]
+    set nexys4DeviceIdentifier [get_property NAME [current_hw_device]]
+    close_hw_target
+    disconnect_hw_server
+    close_hw            
+    # Get bitstream data in binary and base64 format
+    set nexys4BitstreamPath [file join resources nexys4.bit]
+    set nexys4BitstreamChan [open $nexys4BitstreamPath r]
+    chan configure $nexys4BitstreamChan -encoding binary -translation binary
+    set nexys4BitstreamData [chan read $nexys4BitstreamChan]
+    set nexys4BitstreamBase64 [base64::encode $nexys4BitstreamData]
+    # Clean up file handles and variables
+    chan close $nexys4BitstreamChan
+    unset nexys4BitstreamPath
+    unset nexys4BitstreamChan
+}
+
 test "testRpcProgramHandler1" "" \
         -constraints { nexys4 } \
         -setup {
-            # Get target and device names
-            open_hw
-            current_hw_server [connect_hw_server]
-            current_hw_target [lindex [get_hw_targets] 0]
-            open_hw_target
-            current_hw_device [lindex [get_hw_devices] 0]
-            set targetIdentifier [get_property NAME [current_hw_target]]
-            set deviceIdentifier [get_property NAME [current_hw_device]]
-            close_hw_target
-            disconnect_hw_server
-            close_hw            
-            # Point to Nexys 4 user demo bitstream file
-            set bitstreamPath [file join resources nexys4.bit]
-            set bitstreamChan [open $bitstreamPath r]
-            chan configure $bitstreamChan \
-                    -encoding binary \
-                    -translation binary
-            set bitstreamData [chan read $bitstreamChan]
-            chan close $bitstreamChan
-            set bitstreamBase64 [base64::encode $bitstreamData]
-
             set paramsJson [json create object]
-            json set paramsJson device string $deviceIdentifier
-            json set paramsJson target string $targetIdentifier
-            json set paramsJson bitstream string $bitstreamBase64
-
+            json set paramsJson device string $nexys4DeviceIdentifier
+            json set paramsJson target string $nexys4TargetIdentifier
+            json set paramsJson bitstream string $nexys4BitstreamBase64
         } \
         -body {
             set resultJson [::fpgaedu::vivadoserver::rpcProgramHandler $paramsJson]
             assertTrue [json contains -type null]
         } \
         -cleanup {
-            unset targetIdentifier
-            unset deviceIdentifier
-            unset bitstreamPath
-            unset bitstreamChan
-            unset bitstreamData
-            unset bitstreamBase64
             unset paramsJson
             unset resultJson
-        }
-
-test "testRpcProgramHandler2" "" \
-        -body {
-
         }
 
 cleanupTests

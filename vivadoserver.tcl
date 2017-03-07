@@ -33,16 +33,14 @@ namespace eval ::fpgaedu::vivadoserver {
     namespace import ::fpgaedu::vivado::vivado
 
     variable rpcConfig 
-    jsonrpc map rpcConfig program ::rpcProgramHandler
+    jsonrpc map rpcConfig program ::fpgaedu::vivadoserver::rpcProgramHandler
     # jsonrpc map rpcConfig ::rpcGetHardwareInfoHandler getHardwareInfo
 
     set commandMap {
         start ::fpgaedu::vivadoserver::Start
     }
-
     namespace ensemble create \
             -map $commandMap
-
     namespace ensemble create \
             -command vivadoserver \
             -map $commandMap
@@ -50,21 +48,32 @@ namespace eval ::fpgaedu::vivadoserver {
 
 proc ::fpgaedu::vivadoserver::rpcProgramHandler {paramsJson} {
     # validate params
-    if {![json contains $paramsJson -key target -type string]} {
+    if {![json contains $paramsJson -key target]} {
         jsonrpc throw \
                 -code invalidParams \
                 -message "Missing param target"
-    }
-    if {![json contains $paramsJson -key device -type string]} {
+    } elseif {![json contains $paramsJson -key target -type string]} {
+        jsonrpc throw \
+                -code invalidParams \
+                -message "Invalid type for param target, must be string"
+    } elseif {![json contains $paramsJson -key device]} {
         jsonrpc throw \
                 -code invalidParams \
                 -message "Missing param device"
-    }
-    if {![json contains $paramsJson -key bitstream -type string]} {
+    } elseif {![json contains $paramsJson -key device -type string]} {
+        jsonrpc throw \
+                -code invalidParams \
+                -message "Invalid type for param device, must be string"
+    } elseif {![json contains $paramsJson -key bitstream]} {
         jsonrpc throw \
                 -code invalidParams \
                 -message "Missing param bitstream"
+    } elseif {![json contains $paramsJson -key bitstream -type string]} {
+        jsonrpc throw \
+                -code invalidParams \
+                -message "Invalid type for param bitstream, must be string"
     }
+    
     # Extract the base64 encoded bitstream from the request parameters and write
     # the decoded contents to a temporary file.
     set bitstreamBase64 [json get $paramsJson bitstream]
@@ -109,7 +118,7 @@ proc  ::fpgaedu::vivadoserver::Start {port} {
     fileevent stdin readable {}
     puts "Starting server. Press Ctrl-C to exit"
     # Setup the socket connection handler and start the event loop.
-    socket -server ::acceptConnection 12345
-    vwait shutdown
+    socket -server acceptConnection 3742
+    vwait forever
 }
 
