@@ -31,11 +31,10 @@ namespace eval ::fpgaedu::vivadoserver {
     namespace import ::fpgaedu::jsonrpc::jsonrpc
     namespace import ::fpgaedu::json::json
     namespace import ::fpgaedu::vivado::vivado
-
+    # static rpc handler configuration
     variable rpcConfig 
-    jsonrpc map rpcConfig program ::fpgaedu::vivadoserver::rpcProgramHandler
-    # jsonrpc map rpcConfig ::rpcGetHardwareInfoHandler getHardwareInfo
-
+    jsonrpc map rpcConfig program ::fpgaedu::vivadoserver::RpcProgramHandler
+    # namespace ensemble configuration
     set commandMap {
         start ::fpgaedu::vivadoserver::Start
     }
@@ -46,7 +45,7 @@ namespace eval ::fpgaedu::vivadoserver {
             -map $commandMap
 }
 
-proc ::fpgaedu::vivadoserver::rpcProgramHandler {paramsJson} {
+proc ::fpgaedu::vivadoserver::RpcProgramHandler {paramsJson} {
     # validate params
     if {![json contains $paramsJson -key target]} {
         jsonrpc throw \
@@ -76,15 +75,17 @@ proc ::fpgaedu::vivadoserver::rpcProgramHandler {paramsJson} {
     
     # Extract the base64 encoded bitstream from the request parameters and write
     # the decoded contents to a temporary file.
+    # Vivado requires the bitstream file have a .bit extension. Since the 
+    # tempfile procedure does not allow to define a prefix, this is done 
+    # manually by renaming the file.
+    # The request base64 bitstream contents are written in binary format. 
     set bitstreamBase64 [json get $paramsJson bitstream]
     set bitstreamBinary [::base64::decode $bitstreamBase64]
     set bitstreamFilePath [::fileutil::tempfile bitstream]
     file rename $bitstreamFilePath "$bitstreamFilePath.bit"
     set bitstreamFilePath "$bitstreamFilePath.bit"
     set bitstreamFileChan [open $bitstreamFilePath w]
-    chan configure $bitstreamFileChan \
-        -encoding binary \
-        -translation binary
+    chan configure $bitstreamFileChan -encoding binary -translation binary
     chan puts -nonewline $bitstreamFileChan $bitstreamBinary
     chan close $bitstreamFileChan
     # Extract additional params
@@ -96,7 +97,7 @@ proc ::fpgaedu::vivadoserver::rpcProgramHandler {paramsJson} {
     return [json create null]
 }
 
-proc ::fpgaedu::vivadoserver::socketHandler {channelId} {
+proc ::fpgaedu::vivadoserver::SocketHandler {channelId} {
     variable rpcConfig
     catch {
         set requestData [chan read $channelId]
@@ -107,18 +108,18 @@ proc ::fpgaedu::vivadoserver::socketHandler {channelId} {
 }
 
 # http://wiki.tcl.tk/5947
-proc ::fpgaedu::vivadoserver::acceptConnection {channelId addr port} {
+proc ::fpgaedu::vivadoserver::AcceptConnection {channelId addr port} {
     fconfigure $channelId -blocking 1 -buffering full
-    fileevent $channelId readable [list ::fpgaedu::vivadoserver::socketHandler $channelId]
+    fileevent $channelId readable [list ::fpgaedu::vivadoserver::SocketHandler $channelId]
 }
 
-proc  ::fpgaedu::vivadoserver::Start {port} {
+proc  ::fpgaedu::vivadoserver::Start {{port 3742}}  {
     # Registering an empty fileevent handler for stdin allows for the reading of 
     # SIGINT while the event loop is running.
     fileevent stdin readable {}
     puts "Starting server. Press Ctrl-C to exit"
     # Setup the socket connection handler and start the event loop.
-    socket -server acceptConnection 3742
+    socket -server AcceptConnection $port
     vwait forever
 }
 
