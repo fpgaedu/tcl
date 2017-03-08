@@ -71,7 +71,7 @@ test "testRpcProgramHandler1" "" \
             json set paramsJson bitstream string $nexys4BitstreamBase64
         } \
         -body {
-            set resultJson [::fpgaedu::vivadoserver::rpcProgramHandler $paramsJson]
+            set resultJson [::fpgaedu::vivadoserver::RpcProgramHandler $paramsJson]
             assertTrue [json contains -type null]
         } \
         -cleanup {
