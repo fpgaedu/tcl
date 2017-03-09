@@ -94,4 +94,19 @@ test "testRpcEchoHandler1" "" \
             unset resultJson
         }
 
+test "testRpcExitHandler1" "" \
+        -constraints { vivado } \
+        -setup {
+            set paramsJson [json create null]
+        } \
+        -body {
+            assertTrue $::fpgaedu::vivadoserver::listening
+            set resultJson [::fpgaedu::vivadoserver::RpcExitHandler $paramsJson]
+            assertFalse $::fpgaedu::vivadoserver::listening
+        } \
+        -cleanup {
+            unset paramsJson
+            unset resultJson
+        }
+
 cleanupTests

@@ -31,6 +31,10 @@ namespace eval ::fpgaedu::vivadoserver {
     namespace import ::fpgaedu::jsonrpc::jsonrpc
     namespace import ::fpgaedu::json::json
     namespace import ::fpgaedu::vivado::vivado
+
+    # variable to signal event loop cancellation
+    variable listening 1
+
     # static rpc handler configuration
     variable rpcConfig 
     jsonrpc map rpcConfig program ::fpgaedu::vivadoserver::RpcProgramHandler
@@ -43,6 +47,11 @@ namespace eval ::fpgaedu::vivadoserver {
     namespace ensemble create \
             -command vivadoserver \
             -map $commandMap
+}
+
+proc ::fpgaedu::vivadoserver::RpcExitHandler {paramsJson} {
+    variable listening
+    set listening 0
 }
 
 proc ::fpgaedu::vivadoserver::RpcEchoHandler {paramsJson} {
@@ -118,12 +127,13 @@ proc ::fpgaedu::vivadoserver::AcceptConnection {channelId addr port} {
 }
 
 proc  ::fpgaedu::vivadoserver::Start {{port 3742}}  {
+    variable listening
     # Registering an empty fileevent handler for stdin allows for the reading of 
     # SIGINT while the event loop is running.
     fileevent stdin readable {}
     puts "Starting server. Press Ctrl-C to exit"
     # Setup the socket connection handler and start the event loop.
     socket -server AcceptConnection $port
-    vwait forever
+    vwait listening
 }
 
