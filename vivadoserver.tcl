@@ -45,6 +45,10 @@ namespace eval ::fpgaedu::vivadoserver {
             -map $commandMap
 }
 
+proc ::fpgaedu::vivadoserver::RpcEchoHandler {paramsJson} {
+    return $paramsJson
+}
+
 proc ::fpgaedu::vivadoserver::RpcProgramHandler {paramsJson} {
     # validate params
     if {![json contains $paramsJson -key target]} {

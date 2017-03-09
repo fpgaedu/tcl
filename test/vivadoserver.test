@@ -79,4 +79,19 @@ test "testRpcProgramHandler1" "" \
             unset resultJson
         }
 
+test "testRpcEchoHandler1" "" \
+        -constraints { vivado } \
+        -setup {
+            set paramsJson [json create object]
+            json set paramsJson hello string world
+        } \
+        -body {
+            set resultJson [::fpgaedu::vivadoserver::RpcEchoHandler $paramsJson]
+            assertTrue [json contains -key hello -type string -value world]
+        } \
+        -cleanup {
+            unset paramsJson
+            unset resultJson
+        }
+
 cleanupTests
