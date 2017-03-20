@@ -1,5 +1,5 @@
 
-lappend auto_path .
+lappend auto_path [file dirname [file normalize [info script]]]
 
 package require fpgaedu::vivadoserver 1.0
 
