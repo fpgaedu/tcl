@@ -38,6 +38,7 @@ namespace eval ::fpgaedu::vivadoserver {
     # static rpc handler configuration
     variable rpcConfig 
     jsonrpc map rpcConfig program ::fpgaedu::vivadoserver::RpcProgramHandler
+    jsonrpc map rpcConfig echo ::fpgaedu::vivadoserver::RpcEchoHandler
     # namespace ensemble configuration
     set commandMap {
         start ::fpgaedu::vivadoserver::Start
