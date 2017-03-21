@@ -44,12 +44,15 @@ package provide fpgaedu::json 2.0
 namespace eval ::fpgaedu::json {
     namespace export json
     # Define ensemble command mapping
-    dict set commandMap create    ::fpgaedu::json::Create
-    dict set commandMap get       ::fpgaedu::json::Get
-    dict set commandMap set       ::fpgaedu::json::Set
-    dict set commandMap contains  ::fpgaedu::json::Contains
-    dict set commandMap parse     ::fpgaedu::json::Parse
-    dict set commandMap stringify ::fpgaedu::json::Stringify
+    set commandMap {
+        create    ::fpgaedu::json::Create
+        get       ::fpgaedu::json::Get
+        set       ::fpgaedu::json::Set
+        contains  ::fpgaedu::json::Contains
+        parse     ::fpgaedu::json::Parse
+        stringify ::fpgaedu::json::Stringify
+        append    ::fpgaedu::json::Append
+    }
     # Create ensemble for package name as well as "json" command, such that
     # one may import the "json" command from this package.
     namespace ensemble create -map $commandMap
@@ -71,7 +74,33 @@ namespace eval ::fpgaedu::json {
 #       ::fpgaedu::json contains JSON ?-key KEY? ?-type TYPE? ?-value VALUE?
 #       ::fpgaedu::json parse DATA 
 #       ::fpgaedu::json Stringify JSON
-
+#
+# Example data structure:
+# {
+#     data {
+#         0 {
+#             a "hello world"
+#             b 999
+#             c True
+#         }
+#         1 null
+#     }
+#     schema {
+#         type array
+#         members {
+#             0 {
+#                 type object
+#                 members {
+#                     a { type string }
+#                     b { type number }
+#                     c { type boolean }
+#                 }
+#             }
+#             1 { type null }
+#         }
+#     }
+# }
+#
 # ::fpgaedu::json::Create variableName type ?value?
 proc ::fpgaedu::json::Create {type {value {}}} {
 
@@ -551,4 +580,13 @@ proc ::fpgaedu::json::Stringify {jsonValue} {
             return null
         }
     }
+}
+
+proc ::fpgaedu::json::Append {jsonVarName type value} {
+    
+    upvar $jsonVarName jsonVar
+    
+    set appendIndex [dict size [dict get $jsonVar data]]
+
+    Set jsonVar $appendIndex $type $value
 }

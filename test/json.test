@@ -699,4 +699,29 @@ test "testStringify5" "" \
             unset testJson
         }
 
+
+test "testAppend1" "" \
+        -setup {
+            set testJson [json create array]
+        } \
+        -body {
+            json append testJson string "hello world"
+            
+            assertTrue [json contains $testJson \
+                    -key 0 \
+                    -type string \
+                    -value "hello world"]
+        } \
+        -cleanup {
+            unset testJson
+        }
+
+test "testAppendThrows" "" \
+        -body {
+            assertThrows {
+                json append [json create string "hello world"] string "some value"
+                json append [json create object] string "some other string value"
+            }
+        }
+
 cleanupTests
