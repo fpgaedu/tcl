@@ -38,7 +38,7 @@ namespace import ::fpgaedu::test::assert::*
 # Setup some nexys4-specific test variables. Since the acquisition of this 
 # information takes relatively long, these steps are not repeated in every
 # test setup.
-if {[::tcltest::testConstraint nexys4]} {
+if {[testConstraint nexys4]} {
     # Get nexys4 target and device identifiers
     open_hw
     current_hw_server [connect_hw_server]
@@ -61,6 +61,39 @@ if {[::tcltest::testConstraint nexys4]} {
     unset nexys4BitstreamPath
     unset nexys4BitstreamChan
 }
+
+test "testRpcGetTargetIdentifiersHandler" "" \
+        -constraints { nexys4 } \
+        -setup {
+            set paramsJson [json create null]
+        } \
+        -body {
+            set resultJson [::fpgaedu::vivadoserver::RpcGetTargetIdentifiersHandler $paramsJson]
+            assertTrue [json contains $resultJson -type array]
+            assertTrue [json contains $resultJson -key 0 -type string -value $nexys4TargetIdentifier]
+            assertFalse [json contains $resultJson -key 1]
+        } \
+        -cleanup {
+            unset paramsJson
+            unset resultJson
+        }
+
+test "testRpcGetDeviceIdentifiersHandler" "" \
+        -constraints { nexys4 } \
+        -setup {
+            set paramsJson [json create object]
+            json set paramsJson targetIdentifier string $nexys4TargetIdentifier
+        } \
+        -body {
+            set resultJson [::fpgaedu::vivadoserver::RpcGetDeviceIdentifiersHandler $paramsJson]
+            assertTrue [json contains $resultJson -type array]
+            assertTrue [json contains $resultJson -key 0 -type string -value $nexys4DeviceIdentifier]
+            assertFalse [json contains $resultJson -key 1]
+        } \
+        -cleanup {
+            unset paramsJson
+            unset resultJson
+        }
 
 test "testRpcProgramHandler1" "" \
         -constraints { nexys4 } \

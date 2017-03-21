@@ -28,70 +28,94 @@ namespace import ::fpgaedu::test::assert::*
 # to prevent this test script from crashing when executed outside the Vivado
 # Tcl interpreter, since the fpgaedu::vivado package is dependent on the
 # Vivado package.
-if {[testConstraint vivado] == 1} {
+if {[testConstraint vivado]} {
     package require fpgaedu::vivado 1.0
 }
 
-test "testNexys4Programming" \
+# Setup some nexys4-specific test variables. Since the acquisition of this 
+# information takes relatively long, these steps are not repeated in every
+# test setup.
+if {[testConstraint nexys4]} {
+    # Get nexys4 target and device identifiers
+    open_hw
+    current_hw_server [connect_hw_server]
+    current_hw_target [lindex [get_hw_targets] 0]
+    open_hw_target
+    current_hw_device [lindex [get_hw_devices] 0]
+    set nexys4TargetIdentifier [get_property NAME [current_hw_target]]
+    set nexys4DeviceIdentifier [get_property NAME [current_hw_device]]
+    close_hw_target
+    disconnect_hw_server
+    close_hw            
+    # Get bitstream data in binary and base64 format
+    set nexys4BitstreamPath [file join resources nexys4.bit]
+}
+
+test "testGetTargetIdentifiers" "" \
+        -constraints { nexys4 } \
+        -body {
+            set targets [fpgaedu::vivado getTargetIdentifiers]
+            
+            assertEquals [llength $targets] 1
+            assertEquals [lindex $targets 0] $nexys4TargetIdentifier
+        } \
+        -cleanup {
+            unset targets
+        }
+
+test "testGetDeviceIdentifiers" "" \
+        -constraints { nexys4 } \
+        -body {
+            set devices [fpgaedu::vivado getDeviceIdentifiers $nexys4TargetIdentifier]
+
+            assertEquals [llength $devices] 1
+            assertEquals [lindex $devices 0] $nexys4DeviceIdentifier
+        } \
+        -cleanup {
+            unset devices
+        }
+
+
+test "testProgram" \
         "Program a connected Digilent Nexys 4 board using the 
          fpgaedu::vivado::vivado program command and a bitstream that was 
          compiled from the Digilent Nexys 4 user demo, available at:
          https://github.com/Digilent/Nexys4/tree/master/Projects/User_Demo" \
         -constraints { nexys4 } \
-        -setup {
-            # Get target and device names
-            open_hw
-            current_hw_server [connect_hw_server]
-            current_hw_target [lindex [get_hw_targets] 0]
-            open_hw_target
-            current_hw_device [lindex [get_hw_devices] 0]
-            set targetIdentifier [get_property NAME [current_hw_target]]
-            set deviceIdentifier [get_property NAME [current_hw_device]]
-            close_hw_target
-            disconnect_hw_server
-            close_hw            
-            # Point to Nexys 4 user demo bitstream file
-            set bitstreamPath [file join resources nexys4.bit]
-        } \
         -body {
             # Should program first listed device when no target and device
             # are specified.
-            ::fpgaedu::vivado::vivado program $bitstreamPath
+            ::fpgaedu::vivado program $nexys4BitstreamPath
             # Should program specific target and device.
-            ::fpgaedu::vivado::vivado program \
-                    $bitstreamPath \
-                    $targetIdentifier \
-                    $deviceIdentifier
+            ::fpgaedu::vivado program \
+                    $nexys4BitstreamPath \
+                    $nexys4TargetIdentifier \
+                    $nexys4DeviceIdentifier
             # Should throw error on illegal bitstream path
             assertThrows {
-                ::fpgaedu::vivado::vivado program illegalPath
+                ::fpgaedu::vivado program illegalPath
             }
             # Should throw error on illegal device identifier
             assertThrows {
-                ::fpgaedu::vivado::vivado program \
-                        $bitstreamPath \
-                        $targetIdentifier \
+                ::fpgaedu::vivado program \
+                        $nexys4BitstreamPath \
+                        $nexys4TargetIdentifier \
                         someRandomString
             }
             # Should throw error on illegal target identifier
             assertThrows {
-                ::fpgaedu::vivado::vivado program \
-                        $bitstreamPath \
+                ::fpgaedu::vivado program \
+                        $nexys4BitstreamPath \
                         someRandomString \
-                        $deviceIdentifier
+                        $nexys4DeviceIdentifier
             }
             # Should throw error on illegal identifiers
             assertThrows {
-                ::fpgaedu::vivado::vivado program \
-                        $bitstreamPath \
+                ::fpgaedu::vivado program \
+                        $nexys4BitstreamPath \
                         someRandomString \
                         someOtherRandomString
             }
-        } \
-        -cleanup {
-            unset targetIdentifier
-            unset deviceIdentifier
-            unset bitstreamPath
         }
 
 cleanupTests

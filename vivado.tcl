@@ -20,12 +20,52 @@ package provide fpgaedu::vivado 1.0
 
 namespace eval ::fpgaedu::vivado {
     namespace export vivado
-    namespace ensemble create \
-            -command vivado \
-            -map {
-                getHardwareInfo ::fpgaedu::vivado::GetHardwareInfo
-                program         ::fpgaedu::vivado::Program
-            }
+
+    set commandMap {
+        getTargetIdentifiers    ::fpgaedu::vivado::GetTargetIdentifiers
+        getDeviceIdentifiers    ::fpgaedu::vivado::GetDeviceIdentifiers
+        program                 ::fpgaedu::vivado::Program
+    }
+
+    namespace ensemble create -map $commandMap
+    namespace ensemble create -command vivado -map $commandMap
+}
+
+proc ::fpgaedu::vivado::GetTargetIdentifiers {} {
+
+    open_hw
+    current_hw_server [connect_hw_server]
+    
+    set targets {}
+
+    foreach target [get_hw_targets] {
+        lappend targets [get_property NAME $target]
+    }
+
+    disconnect_hw_server [current_hw_server]
+    close_hw
+
+    return $targets
+}
+
+proc ::fpgaedu::vivado::GetDeviceIdentifiers {targetIdentifier} {
+
+    open_hw
+    current_hw_server [connect_hw_server]
+    current_hw_target [lindex [get_hw_targets -filter "NAME == $targetIdentifier"] 0]
+
+    set devices {}
+
+    open_hw_target [current_hw_target]
+
+    foreach device [get_hw_devices] {
+        lappend devices [get_property NAME $device]
+    }
+
+    disconnect_hw_server [current_hw_server]
+    close_hw
+
+    return $devices
 }
 
 # Returns hardware information about the current vivado instance.

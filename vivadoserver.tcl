@@ -37,8 +37,12 @@ namespace eval ::fpgaedu::vivadoserver {
 
     # static rpc handler configuration
     variable rpcConfig 
-    jsonrpc map rpcConfig program ::fpgaedu::vivadoserver::RpcProgramHandler
-    jsonrpc map rpcConfig echo ::fpgaedu::vivadoserver::RpcEchoHandler
+    jsonrpc map rpcConfig echo                  ::fpgaedu::vivadoserver::RpcEchoHandler
+    jsonrpc map rpcConfig exit                  ::fpgaedu::vivadoserver::RpcExitHandler
+    jsonrpc map rpcConfig program               ::fpgaedu::vivadoserver::RpcProgramHandler
+    jsonrpc map rpcConfig getTargetIdentifiers  ::fpgaedu::vivadoserver::RpcGetTargetIdentifiersHandler
+    jsonrpc map rpcConfig getDeviceIdentifiers  ::fpgaedu::vivadoserver::RpcGetDeviceIdentifiersHandler
+    
     # namespace ensemble configuration
     set commandMap {
         start ::fpgaedu::vivadoserver::Start
@@ -50,13 +54,51 @@ namespace eval ::fpgaedu::vivadoserver {
             -map $commandMap
 }
 
+proc ::fpgaedu::vivadoserver::RpcEchoHandler {paramsJson} {
+    return $paramsJson
+}
+
 proc ::fpgaedu::vivadoserver::RpcExitHandler {paramsJson} {
     variable listening
     set listening 0
+    return [json create null]
 }
 
-proc ::fpgaedu::vivadoserver::RpcEchoHandler {paramsJson} {
-    return $paramsJson
+proc ::fpgaedu::vivadoserver::RpcGetTargetIdentifiersHandler {paramsJson} {
+    
+    set targets [fpgaedu::vivado getTargetIdentifiers]
+
+    set resultJson [json create array]
+    
+    foreach target $targets {
+        json append resultJson string $target
+    }
+
+    return $resultJson
+}
+
+proc ::fpgaedu::vivadoserver::RpcGetDeviceIdentifiersHandler {paramsJson} {
+    if {![json contains $paramsJson -key targetIdentifier]} {
+        jsonrpc throw \
+                -code invalidParams \
+                -message "Missing param targetIdentifier"
+    } elseif {![json contains $paramsJson -key targetIdentifier -type string]} {
+        jsonrpc throw \
+                -code invalidParams \
+                -message "Invalid type for param targetIdentifier, must be string"
+    }
+
+    set targetIdentifier [json get $paramsJson targetIdentifier]
+
+    set devices [fpgaedu::vivado getDeviceIdentifiers $targetIdentifier]
+
+    set resultJson [json create array]
+
+    foreach device $devices {
+        json append resultJson string $device
+    }
+
+    return $resultJson
 }
 
 proc ::fpgaedu::vivadoserver::RpcProgramHandler {paramsJson} {
